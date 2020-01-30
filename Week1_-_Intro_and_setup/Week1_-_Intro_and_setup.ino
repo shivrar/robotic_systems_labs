@@ -23,11 +23,17 @@
 */
 #include "common_sys.h"
 
+
+int ledPin =6;
+
 // the setup function runs once when you press reset or power the board
 void setup() {
   // initialize digital pin LED_BUILTIN as an output.
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(ledPin, OUTPUT);  // sets the pin as output
 }
+
+int b = 0;
 
 // the loop function runs over and over again forever
 void loop() {
@@ -38,6 +44,15 @@ void loop() {
   Serial.print("An example");
   Serial.println(" of fixing the serial bug");
   }*/
-  
-  flash_leds();                     // wait for a second
-}
+  // blink only ten times  
+  if(b<=5)
+  {    
+    b++;
+    flash_leds(500);
+    // wait for a second
+    play_tone(ledPin, 125);
+  }
+  else{
+  analogWrite(ledPin, 0);
+  };
+};
