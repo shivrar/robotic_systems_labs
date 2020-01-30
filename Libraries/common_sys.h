@@ -2,6 +2,8 @@
 u8 USB_SendSpace(u8 ep);
 #define SERIAL_ACTIVE (USB_SendSpace(CDC_TX) >= 50)
 
+//TODO: Setup a sym link for the the other lib instead of copy and pasting everything
+
 void flash_leds ()
 {
   digitalWrite(LED_BUILTIN, HIGH);   // turn the LED on (HIGH is the voltage level)
