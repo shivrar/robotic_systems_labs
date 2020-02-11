@@ -45,20 +45,29 @@ void loop() {
         count++;
         led1=!led1;
         digitalWrite(13,led1);
-//        Serial.println("Led3");
-//        Serial.println(count);
-//        Serial.println(elapsed_time);
+        digitalWrite(LED_BUILTIN_RX,HIGH);
+        digitalWrite(LED_BUILTIN_TX,HIGH);
         
+        if(count%3 ==0){
+//          led2=!led2;
+          digitalWrite(LED_BUILTIN_RX,LOW);
+          count = 0;
+        }
+        else if(count%2==0){
+//          led3=!led3;
+          digitalWrite(LED_BUILTIN_TX,LOW);
+        }        
     }
 
-    if(count%3 == 0 && elapsed_time >=1000){
-        led2=!led2;
-        digitalWrite(LED_BUILTIN_RX,led2);
-    }
-    else if(count%2==0 && elapsed_time >=1000){
-        led3=!led3;
-        digitalWrite(LED_BUILTIN_TX,led3);
-    }
+//    if(count%3 == 0 && elapsed_time >=1000){
+//        led2=!led2;
+//        digitalWrite(LED_BUILTIN_RX,led2);
+//        count = 0;
+//    }
+//    else if(count%2==0 && elapsed_time >=1000){
+//        led3=!led3;
+//        digitalWrite(LED_BUILTIN_TX,led3);
+//    }
 
   
 //  last_timestamp = millis();
