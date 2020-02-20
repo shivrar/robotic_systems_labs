@@ -68,7 +68,7 @@ void BangBang(LineSensor left, LineSensor centre, LineSensor right, int min_powe
   
 }
 
-float weightedPower(LineSensor left, LineSensor centre, LineSensor right, int min_power, int max_power, byte &left_power, byte &right_power)
+float weightedPower(LineSensor left, LineSensor centre, LineSensor right, int min_power, int max_power,volatile byte &left_power,volatile byte &right_power)
 {
   float total = left.readCalibrated() + centre.readCalibrated() +right.readCalibrated();
   float rightM = right.readCalibrated()/(total);
@@ -79,3 +79,46 @@ float weightedPower(LineSensor left, LineSensor centre, LineSensor right, int mi
   right_power = abs(m*max_power);
   return m;
 }
+
+// Routine to setupt timer3 to run 
+void setupTimer3(float hz) {
+  
+  // disable global interrupts
+  cli();          
+
+  // Reset timer3 to a blank condition.
+  // TCCR = Timer/Counter Control Register
+  TCCR3A = 0;     // set entire TCCR3A register to 0
+  TCCR3B = 0;     // set entire TCCR3B register to 0
+
+  // First, turn on CTC mode.  Timer3 will count up
+  // and create an interrupt on a match to a value.
+  // See table 14.4 in manual, it is mode 4.
+  TCCR3B = TCCR3B | (1 << WGM32);
+
+  // For a cpu clock precaler of 256:
+  // Shift a 1 up to bit CS32 (clock select, timer 3, bit 2)
+  // Table 14.5 in manual. 
+  TCCR3B = TCCR3B | (1 << CS32);
+  
+  
+  // set compare match register to desired timer count.
+  // CPU Clock  = 16000000 (16mhz).
+  // Prescaler  = 256
+  // Timer freq = 16000000/256 = 62500
+  // We can think of this as timer3 counting up to 62500 in 1 second.
+  // compare match value = 62500 / 2 (we desire 2hz).
+  OCR3A = 62500.00/hz;
+  
+  // enable timer compare interrupt:
+  TIMSK3 = TIMSK3 | (1 << OCIE3A);
+
+  // enable global interrupts:
+  sei(); 
+  
+}
+
+// The ISR routine.
+// The name TIMER3_COMPA_vect is a special flag to the 
+// compiler.  It automatically associates with Timer3 in
+// CTC mode.

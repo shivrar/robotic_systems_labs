@@ -7,16 +7,17 @@
 #define E0_A_PIN  26
 #define MIN_RES 0.0044; //Constant in radians for minimum readable distance between encoder ticks
 
+//~~~~~~~~~~~~~~~~~Important variables to be avaiable to other functions~~~~~~~~~~~~~~~~~~~~~~~//
+volatile float theta_e1;
+volatile float theta_e0;
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
+
 
 // Volatile Global variables used by Encoder ISR.
-volatile float theta_e1;
-volatile bool oldE1_A;  // used by encoder to remember prior state of A
-volatile bool oldE1_B;  // used by encoder to remember prior state of B
-
-volatile float theta_e0;
 volatile bool oldE0_A;  // used by encoder to remember prior state of A
 volatile bool oldE0_B;  // used by encoder to remember prior state of B
-
+volatile bool oldE1_A;  // used by encoder to remember prior state of A
+volatile bool oldE1_B;  // used by encoder to remember prior state of B
 //TODO: NEXT STEPS: Try to get the FK up and running 
 
 // This ISR handles just Encoder 1
