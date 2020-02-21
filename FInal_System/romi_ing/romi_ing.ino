@@ -20,20 +20,31 @@
 
 volatile float confidence;
 
-
-int max_power = 50;
+float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
+int max_power = 50; // ~5.06
 int min_power = 20;
 
-float leftM, rightM, total, m;
+
+/*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
+
+speed = 0.1056*(PWM) + 0.287 is an alright linear approximation to convert pwm signal to speed values
+
+*/
+
+float slope = 0.1056, y_int = 0.287;
+
+PID left_wheel(1.2, 0.074,0.1);
+PID right_wheel(1.2, 0.074,0.1);
+
 
 volatile byte l_power;
 volatile byte r_power;
 volatile bool l_direction;
 volatile bool r_direction;
-
+volatile float m;
 //intialise the state
 // NB: -1 is a debug state So use that accordingly
-int state = 0;
+int state = -1;
 
 LineSensor l_sensor(LINE_LEFT_PIN);
 LineSensor c_sensor(LINE_CENTRE_PIN);
@@ -42,7 +53,7 @@ LineSensor r_sensor(LINE_RIGHT_PIN);
 
 //Interrupt definition here
 //volatile boolean DEBUG_LED_STATE;
-double hz = 10.0;
+double hz = 20.0;
 volatile double prev_theta_e1 = 0.0;
 volatile double prev_theta_e0 = 0.0;
 
@@ -71,6 +82,10 @@ void setup() {
   pinMode( R_PWM_PIN, OUTPUT );
   pinMode( R_DIR_PIN, OUTPUT );
 
+  left_wheel.setMax(17.2);
+  right_wheel.setMax(17.2);
+
+  
   pinMode(13, OUTPUT);
 
   digitalWrite( L_DIR_PIN, FORWARD);
@@ -109,10 +124,34 @@ switch(state){
 
   // Debug state!!!!!
   case -1:
-  l_power = max_power;
-  r_power = max_power;
-  l_direction = FORWARD;
-  r_direction = FORWARD;
+
+//  float setpoint = 6.8;
+
+  float left_output = left_wheel.update(0.0, left_wheel_vel);
+  float right_output = right_wheel.update(6.8, right_wheel_vel);
+//  Serial.print(left_output);
+//  Serial.print(",");
+
+  l_power = abs((left_output - y_int)/slope);
+  r_power = abs((right_output - y_int)/slope);
+
+  if(left_output < 0)
+  {
+    l_direction = REVERSE;  
+  }
+  else
+  {
+    l_direction = FORWARD;
+  }
+    
+  if(right_output < 0)
+  {
+    r_direction = REVERSE;  
+  }
+  else
+  {
+    r_direction = FORWARD;
+  }
   break;
   
   case 0:
@@ -160,6 +199,13 @@ switch(state){
   digitalWrite( L_DIR_PIN, l_direction);
   analogWrite( L_PWM_PIN, l_power );
   analogWrite( R_PWM_PIN, r_power );
+
+//  Serial.print(l_power);
+  Serial.print(6.8);
+  Serial.print(",");
+  Serial.println(right_wheel_vel);
+//  Serial.print(",");
+//  Serial.println(right_wheel_vel);
 //  Serial.print(m);
 //  Serial.print(",");
 //  Serial.print(l_sensor.readCalibrated());
@@ -169,5 +215,5 @@ switch(state){
 //  Serial.print(r_sensor.readCalibrated());
 //  Serial.print(",");
 //  Serial.println((l_sensor.readCalibrated() + c_sensor.readCalibrated() +r_sensor.readCalibrated())/3);
-  delay(5);
+  delay(20);
 }

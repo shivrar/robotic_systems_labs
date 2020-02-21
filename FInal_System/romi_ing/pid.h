@@ -99,10 +99,10 @@ class PID
 void PID::printComponents() {
   Serial.print(Kp_output);
   Serial.print(",");
-  Serial.print(Kd_output);
-  Serial.print(",");
-  Serial.print(Ki_output);
-  Serial.print(",");
+//  Serial.print(Kd_output);
+//  Serial.print(",");
+//  Serial.print(Ki_output);
+//  Serial.print(",");
   Serial.print(output_signal);
   Serial.print("\n");
 }
@@ -148,7 +148,7 @@ float PID::update(float demand, float measurement) {
 
   // This represents the error integral.
   // Integrate error over time.
-  integral_error += error+last_error;
+  integral_error += error;
 
   //Attenuate above error components by gain values.
   Kp_output = Kp * error;
@@ -159,7 +159,7 @@ float PID::update(float demand, float measurement) {
   // Note: Check the sign of your d gain.  Check that the
   // Kd_output contribuition is the opposite of any 
   // overshoot you see using the Serial Plotter
-  output_signal = Kp_output + Ki_output + Kd_output;
+  output_signal = Kp_output + Ki_output - Kd_output;
 
   /*
    * ===========================
@@ -185,12 +185,12 @@ float PID::update(float demand, float measurement) {
   
   //Print debugging information if required
   if (debug) {
-    Serial.print(error);
-    Serial.print(",");
-    Serial.print(error_delta);
-    Serial.print(",");
-    Serial.print(integral_error);
-    Serial.print(",");
+//    Serial.print(error);
+//    Serial.print(",");
+//    Serial.print(error_delta);
+//    Serial.print(",");
+//    Serial.print(integral_error);
+//    Serial.println(",");
     
     printComponents();
   }
