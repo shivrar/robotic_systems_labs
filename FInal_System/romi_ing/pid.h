@@ -139,27 +139,27 @@ float PID::update(float demand, float measurement) {
   //This represents the error term
   // Decide what your error signal is (demand vs measurement)
   float error;
-  error = ????;   
+  error = demand - measurement;   
   
   //This represents the error derivative
   // Calculate the change in your error between update()
   float error_delta;
-  error_delta = ????;
+  error_delta = (error-last_error)/time_delta;
 
   // This represents the error integral.
   // Integrate error over time.
-  integral_error = ???;
+  integral_error += error;
 
   //Attenuate above error components by gain values.
-  Kp_output = Kp * ????;
-  Ki_output = Ki * ????;
-  Kd_output = Kd * ????;
+  Kp_output = Kp * error;
+  Ki_output = Ki * integral_error;
+  Kd_output = Kd * error_delta;
 
   // Add the three components to get the total output
   // Note: Check the sign of your d gain.  Check that the
   // Kd_output contribuition is the opposite of any 
   // overshoot you see using the Serial Plotter
-  output_signal = Kp_output + Ki_output + Kd_output;
+  output_signal = Kp_output + Ki_output - Kd_output;
 
   /*
    * ===========================
@@ -171,7 +171,7 @@ float PID::update(float demand, float measurement) {
   //Update persistent variables.
   last_demand = demand;
   last_measurement = measurement;
-
+  last_error = error;
   
   // Catching max in positive sign.
   //if (total > max_output) {
@@ -190,12 +190,12 @@ float PID::update(float demand, float measurement) {
     Serial.print(error_delta);
     Serial.print(",");
     Serial.print(integral_error);
-    Serial.print(",");
+    Serial.println(",");
     
     printComponents();
   }
   
-  return output_signal;
+  return max(min(output_signal, max_output), -max_output);
 }
 
 void PID::setMax(float newMax)
