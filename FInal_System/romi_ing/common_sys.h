@@ -77,7 +77,17 @@ float weightedPower(LineSensor left, LineSensor centre, LineSensor right, int mi
 
   left_power = abs(m*max_power);
   right_power = abs(m*max_power);
-  return m;
+  return max(min(m,1),-1);
+}
+
+float weightedPower(LineSensor left, LineSensor centre, LineSensor right, int min_power, int max_power)
+{
+  float total = left.readCalibrated() + centre.readCalibrated() +right.readCalibrated();
+  float rightM = right.readCalibrated()/(total);
+  float leftM = left.readCalibrated()/(total);
+  float m = rightM - leftM;  
+
+  return max(min(m,1),-1);
 }
 
 // Routine to setupt timer3 to run 
