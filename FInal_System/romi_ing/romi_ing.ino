@@ -24,7 +24,7 @@ volatile float confidence;
 float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 50; // ~5.06
 int min_power = 20;
-float max_des_speed = 4.8;
+float max_des_speed = 6.0;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
 
@@ -37,10 +37,14 @@ float slope = 0.1056, y_int = 0.287;
 float right_output = 0.0;
 float left_output= 0.0;
 float heading_output = 0.0;
-
-PID left_wheel(1.18, 0.074,0.2);
-PID right_wheel(1.18, 0.074,0.2);
-PID heading(0.29,0.0,0.1);
+//
+//PID left_wheel(1.1, 0.085,0.1);
+//PID right_wheel(1.1, 0.085,0.1);
+//PID left_wheel(1.0, 0.1,0);
+//PID right_wheel(1.0, 0.1,0);
+PID left_wheel(0.7, 0.074,1.0);
+PID right_wheel(0.7, 0.074,1.0);
+PID heading(0.3,0.0,1.0);
 
 
 volatile byte l_power;
@@ -58,7 +62,6 @@ LineSensor r_sensor(LINE_RIGHT_PIN);
 
 
 //Interrupt definition here
-//volatile boolean DEBUG_LED_STATE;
 double hz = 250.0;
 volatile double prev_theta_e1 = 0.0;
 volatile double prev_theta_e0 = 0.0;
@@ -91,10 +94,6 @@ prev_theta_e1 = theta_e1;
 }
 
 void setup() {
-
-  setupEncoder0();
-  setupEncoder1();
-
   pinMode( L_PWM_PIN, OUTPUT );
   pinMode( L_DIR_PIN, OUTPUT );
   pinMode( R_PWM_PIN, OUTPUT );
@@ -116,15 +115,18 @@ void setup() {
   l_sensor.calibrate();
   c_sensor.calibrate();
   r_sensor.calibrate();
+  
   pinMode(6, OUTPUT);
-  flash_leds(1000);
+  flash_leds(500);
   
     // wait for a second
   play_tone(6, 125);
-  delay(1000);
+  delay(500);
   analogWrite(6, 0);
 
   //setup timer for speed and odom timed calculations
+  setupEncoder0();
+  setupEncoder1();
   setupTimer3(hz);  
   
 }
@@ -167,21 +169,21 @@ switch(state){
   case 1:
     m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
 
-    if( elapsed_time >= 50 ) {
+    if( elapsed_time >= 25 ) {
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
       count++;
       if(count%2==0)
       {
-        right_output = right_wheel.update(heading_output*max_des_speed, right_wheel_est);
-        left_output = left_wheel.update(-heading_output*max_des_speed, left_wheel_est);
+        right_output = right_wheel.update(heading_output*(0.6*max_des_speed), right_wheel_est);
+        left_output = left_wheel.update(-heading_output*(0.6*max_des_speed), left_wheel_est);
         count = 0;
-        if(heading_output >0.15)
+        if(heading_output >0.2)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
         }
-        else if(heading_output < -0.15)
+        else if(heading_output < -0.2)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
@@ -201,8 +203,8 @@ switch(state){
 
   // Debug state!!!!!
 //  case -1:
-//  float left_output = left_wheel.update(0.0, left_wheel_vel);
-//  float right_output = right_wheel.update(max_des_speed, right_wheel_est);
+//  float left_output = left_wheel.update(max_des_speed-0.5, left_wheel_est);
+//  float right_output = right_wheel.update(0.0, right_wheel_est);
 ////  Serial.print(left_output);
 ////  Serial.print(",");
 //
@@ -226,6 +228,7 @@ switch(state){
 //  {
 //    r_direction = FORWARD;
 //  }
+//  delay(50);
 //  break;
 
 /* Original BangBang Controller*/
@@ -260,11 +263,11 @@ switch(state){
   analogWrite( L_PWM_PIN, l_power );
   analogWrite( R_PWM_PIN, r_power );
 
-//  Serial.print(max_des_speed);
+//  Serial.print(max_des_speed-0.5);
 //  Serial.print(",");
-//  Serial.print(right_wheel_vel);
+//  Serial.print(left_wheel_vel);
 //  Serial.print(",");
-//  Serial.println(right_wheel_est);
+//  Serial.println(left_wheel_est);
 //  Serial.print(m);
 //  Serial.print(",");
 //  Serial.print(l_sensor.readCalibrated());
