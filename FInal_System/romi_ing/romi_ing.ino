@@ -3,17 +3,7 @@
 #include "common_sys.h"
 #include "pid.h"
 #include "SimpleKalmanFilter.h"
-
-#define LINE_LEFT_PIN A2
-#define LINE_CENTRE_PIN A3
-#define LINE_RIGHT_PIN A4
-#define FORWARD LOW
-#define REVERSE HIGH
-
-#define L_PWM_PIN 10
-#define L_DIR_PIN 16
-#define R_PWM_PIN  9
-#define R_DIR_PIN 15
+#include "kinematics.h"
 
 //~~~~~~~~~~~~~~~~~~TODO's~~~~~~~~~~~~~~~~~~~~~//
 // TODO: Look at the idea of confidence for line following for the robot. 
@@ -42,9 +32,9 @@ float heading_output = 0.0;
 //PID right_wheel(1.1, 0.085,0.1);
 //PID left_wheel(1.0, 0.1,0);
 //PID right_wheel(1.0, 0.1,0);
-PID left_wheel(0.7, 0.074,1.0);
-PID right_wheel(0.7, 0.074,1.0);
-PID heading(0.3,0.0,1.0);
+PID left_wheel(0.3, 0.0000,1.0);
+PID right_wheel(0.3, 0.0000,1.0);
+PID heading(0.24,0.0,0.9);
 
 
 volatile byte l_power;
@@ -53,7 +43,7 @@ volatile bool l_direction;
 volatile bool r_direction;
 volatile float m;
 //intialise the state
-// NB: -1 is a debug state So use that accordingly
+// NB: -1, -2, -3 are a debuging state So use that accordingly
 int state = 0;
 
 LineSensor l_sensor(LINE_LEFT_PIN);
@@ -72,32 +62,34 @@ volatile double left_wheel_vel;
 volatile double left_wheel_est;
 volatile double right_wheel_vel;
 volatile double right_wheel_est;
-SimpleKalmanFilter left_filter(0.1,0.1,0.01);
-SimpleKalmanFilter right_filter(0.1,0.1,0.01);
+SimpleKalmanFilter left_filter(0.3,0.1,0.01);
+SimpleKalmanFilter right_filter(0.3,0.1,0.01);
 
 //Control loop timers
 unsigned long last_timestamp;
+Kinematics2D::Kinematics Romi(0.14, 0.035);
 int count = 0;
 
 ISR( TIMER3_COMPA_vect ) {
 //  Do speed calcs and odom in here
-left_wheel_vel = (theta_e0 - prev_theta_e0)*hz;
-right_wheel_vel = (theta_e1 - prev_theta_e1)*hz;
-
-left_wheel_est = left_filter.updateEstimate(left_wheel_vel);
-right_wheel_est = right_filter.updateEstimate(right_wheel_vel);
-
-
-prev_theta_e0 = theta_e0;
-prev_theta_e1 = theta_e1;
+  left_wheel_vel = (theta_e0 - prev_theta_e0)*hz;
+  right_wheel_vel = (theta_e1 - prev_theta_e1)*hz;
+  
+  left_wheel_est = left_filter.updateEstimate(left_wheel_vel);
+  right_wheel_est = right_filter.updateEstimate(right_wheel_vel);
+  
+  //If the wheels are not moving clip the values at zero
+  if(left_wheel_vel == 0)left_wheel_est=0.0;
+  if(right_wheel_vel == 0)right_wheel_est=0.0;
+  
+  Romi.update(left_wheel_vel, right_wheel_vel, millis());
+  
+  prev_theta_e0 = theta_e0;
+  prev_theta_e1 = theta_e1;
 
 }
 
 void setup() {
-  pinMode( L_PWM_PIN, OUTPUT );
-  pinMode( L_DIR_PIN, OUTPUT );
-  pinMode( R_PWM_PIN, OUTPUT );
-  pinMode( R_DIR_PIN, OUTPUT );
 
   left_wheel.setMax(max_des_speed);
   right_wheel.setMax(max_des_speed);
@@ -105,10 +97,6 @@ void setup() {
 
   
   pinMode(13, OUTPUT);
-
-  digitalWrite( L_DIR_PIN, FORWARD);
-  digitalWrite( R_DIR_PIN, FORWARD);
-  
   Serial.begin( 9600 );
 
 //  run a calibrationfor the light sensor
@@ -125,9 +113,12 @@ void setup() {
   analogWrite(6, 0);
 
   //setup timer for speed and odom timed calculations
+  setupMotorPins();
   setupEncoder0();
   setupEncoder1();
-  setupTimer3(hz);  
+  setupTimer3(hz);
+
+  last_timestamp = millis();
   
 }
 
@@ -169,21 +160,23 @@ switch(state){
   case 1:
     m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
 
-    if( elapsed_time >= 25 ) {
+    if( elapsed_time >= 40 ) {
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
       count++;
       if(count%2==0)
       {
-        right_output = right_wheel.update(heading_output*(0.6*max_des_speed), right_wheel_est);
-        left_output = left_wheel.update(-heading_output*(0.6*max_des_speed), left_wheel_est);
+//        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
+//        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
+        right_output = right_wheel.update(heading_output*(0.45*max_des_speed), right_wheel_est);
+        left_output = left_wheel.update(-heading_output*(0.45*max_des_speed), left_wheel_est);
         count = 0;
-        if(heading_output >0.2)
+        if(heading_output >0.12)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
         }
-        else if(heading_output < -0.2)
+        else if(heading_output < -0.12)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
@@ -197,11 +190,11 @@ switch(state){
         }
       }
     }
-    l_power = abs((left_output - y_int)/slope);
-    r_power = abs((right_output - y_int)/slope);
+    l_power = max(abs((left_output - y_int)/slope), min_power);
+    r_power = max(abs((right_output - y_int)/slope), min_power);
     break;
 
-  // Debug state!!!!!
+////   Debug state!!!!!
 //  case -1:
 //  float left_output = left_wheel.update(max_des_speed-0.5, left_wheel_est);
 //  float right_output = right_wheel.update(0.0, right_wheel_est);
@@ -256,25 +249,37 @@ switch(state){
 //    r_power = max(min(r_power, max_power),min_power);
 //    break;
 
+  case -3:
+  /*Drive forward a bit so we can figure out if the kinematics are working alright*/
+    if(elapsed_time >=500 && count < 8)
+    {
+    Serial.println("In here");
+//      float forward_power = (3.14 - y_int)/slope;
+  
+      l_power = random(0,50);
+      r_power = random(0,50);
+      count++;
+      last_timestamp = millis();
+    }
+    else if(elapsed_time >=500 && count >= 8)
+    {
+      l_power = 0;
+      r_power = 0; 
+    }
+  break;
 }
   // Send power PWM to pins, to motor drivers.
   digitalWrite( R_DIR_PIN, r_direction);
   digitalWrite( L_DIR_PIN, l_direction);
   analogWrite( L_PWM_PIN, l_power );
   analogWrite( R_PWM_PIN, r_power );
+  Serial.print(Romi.getPose().x, 6);
+  Serial.print(",");
+  Serial.print(Romi.getPose().y, 6);
+  Serial.print(",");
+  Serial.println(Romi.getPose().theta, 6);
+//  Serial.print(l_power);
+//  Serial.print(",");
+//  Serial.println(r_power);
 
-//  Serial.print(max_des_speed-0.5);
-//  Serial.print(",");
-//  Serial.print(left_wheel_vel);
-//  Serial.print(",");
-//  Serial.println(left_wheel_est);
-//  Serial.print(m);
-//  Serial.print(",");
-//  Serial.print(l_sensor.readCalibrated());
-//  Serial.print(",");
-//  Serial.print(c_sensor.readCalibrated());
-//  Serial.print(",");
-//  Serial.print(r_sensor.readCalibrated());
-//  Serial.print(",");
-//  Serial.println((l_sensor.readCalibrated() + c_sensor.readCalibrated() +r_sensor.readCalibrated())/3);
 }

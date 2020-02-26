@@ -3,7 +3,31 @@
 
 u8 USB_SendSpace(u8 ep);
 #define SERIAL_ACTIVE (USB_SendSpace(CDC_TX) >= 50)
+#define LINE_LEFT_PIN A2
+#define LINE_CENTRE_PIN A3
+#define LINE_RIGHT_PIN A4
+#define FORWARD LOW
+#define REVERSE HIGH
 
+#define L_PWM_PIN 10
+#define L_DIR_PIN 16
+#define R_PWM_PIN  9
+#define R_DIR_PIN 15
+
+
+void setupMotorPins()
+{
+    // Set our motor driver pins as outputs.
+  pinMode( L_PWM_PIN, OUTPUT );
+  pinMode( L_DIR_PIN, OUTPUT );
+  pinMode( R_PWM_PIN, OUTPUT );
+  pinMode( R_DIR_PIN, OUTPUT );
+
+  // Set initial direction for l and r
+  // Which of these is foward, or backward?
+  digitalWrite( L_DIR_PIN, FORWARD);
+  digitalWrite( R_DIR_PIN, FORWARD);
+}
 //TODO: Setup a sym link for the the other lib instead of copy and pasting everything
 
 void flash_leds ()
