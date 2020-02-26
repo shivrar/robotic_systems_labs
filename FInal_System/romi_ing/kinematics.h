@@ -30,10 +30,7 @@ namespace Kinematics2D{
   {
     public:
       
-      Kinematics(float, float);   // Constructor, required.
-  
-      // Write your method functions:
-      // ...
+      Kinematics(float, float);
       void update(float, float, float);
       Pose2D getPose();
             
@@ -76,6 +73,9 @@ namespace Kinematics2D{
     pose_encoder_.x += dx;
     pose_encoder_.y += dy;
     pose_encoder_.theta += dtheta;
+
+    //Lets normalise the angle
+    pose_encoder_.theta = fmod(pose_encoder_.theta ,2.0*M_PI);
 
     last_update_time_ = current_time;
     return;

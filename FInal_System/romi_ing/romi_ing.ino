@@ -24,9 +24,6 @@ speed = 0.1056*(PWM) + 0.287 is an alright linear approximation to convert pwm s
 
 float slope = 0.1056, y_int = 0.287;
 
-float right_output = 0.0;
-float left_output= 0.0;
-float heading_output = 0.0;
 //
 //PID left_wheel(1.1, 0.085,0.1);
 //PID right_wheel(1.1, 0.085,0.1);
@@ -35,6 +32,7 @@ float heading_output = 0.0;
 PID left_wheel(0.3, 0.0000,1.0);
 PID right_wheel(0.3, 0.0000,1.0);
 PID heading(0.24,0.0,0.9);
+PID rth_heading(0.1,0.0,0.0);
 
 
 volatile byte l_power;
@@ -44,7 +42,7 @@ volatile bool r_direction;
 volatile float m;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
-int state = 0;
+int state = -3;
 
 LineSensor l_sensor(LINE_LEFT_PIN);
 LineSensor c_sensor(LINE_CENTRE_PIN);
@@ -94,6 +92,7 @@ void setup() {
   left_wheel.setMax(max_des_speed);
   right_wheel.setMax(max_des_speed);
   heading.setMax(1.0);
+  rth_heading.setMax(M_PI_4);
 
   
   pinMode(13, OUTPUT);
@@ -129,15 +128,16 @@ void setup() {
 void loop() 
 {
 
-  unsigned long time_now = millis();     
+unsigned long time_now = millis();     
 
-  unsigned long elapsed_time = time_now - last_timestamp;
+unsigned long elapsed_time = time_now - last_timestamp;
   
 //switch case logic for romi -> each state should only adjust power and direction of motors for keeping traceability
 switch(state){
 //Now that we have the sensor lets try to find the line
  
   case 0:
+  {
     if(l_sensor.readCalibrated()<300 && c_sensor.readCalibrated()<300 && r_sensor.readCalibrated()< 300)
     {
       l_power = min(l_power + 4, min_power);
@@ -156,11 +156,16 @@ switch(state){
       play_tone(6, 0);
       last_timestamp = millis();
     }
+  }
   break;
   case 1:
+  {
     m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
-
+    float heading_output = 0.0;
+    float right_output = 0.0;
+    float left_output = 0.0;
     if( elapsed_time >= 40 ) {
+
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
       count++;
@@ -189,11 +194,165 @@ switch(state){
           left_output= max_des_speed/2;
         }
       }
-    }
     l_power = max(abs((left_output - y_int)/slope), min_power);
     r_power = max(abs((right_output - y_int)/slope), min_power);
+    }
     break;
+    
+    }
+    case -3:
+    {
+    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
+      if(elapsed_time >=500 && count < 8)
+      {
+//        Serial.println("In here");  
+        l_power = random(0,50);
+        r_power = random(0,50);
+        count++;
+        last_timestamp = millis();
+      }
+      else if(elapsed_time >=500 && count >= 8)
+      {
+        l_power = 0;
+        r_power = 0; 
+        state = 2;
+      }
+      break;
+    }
+    case 2:
+    {
+    /*Return to home - 
+      First lets look at home
+    */
+      if( elapsed_time >= 50 )
+      {
+        float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
+        float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? M_PI - alpha : alpha - M_PI;
+        float rth_heading_output = 0.0;
+        float right_output = 0.0;
+        float left_output = 0.0;
+        last_timestamp = millis();    
+        rth_heading_output = rth_heading.update(0.0, home_heading);
+        count++;
+        if(count%2==0)
+        {
+          right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
+          left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
+          count = 0;
+          l_power = max(abs((left_output - y_int)/slope), min_power);
+          r_power = max(abs((right_output - y_int)/slope), min_power);
+          if(home_heading > 0.1 || home_heading < -0.1)
+          {
+            if(rth_heading_output >0.1)
+            {
+              r_direction = REVERSE;
+              l_direction = FORWARD;
+              }
+            else if(rth_heading_output < -0.1)
+            {
+              r_direction = FORWARD;
+              l_direction = REVERSE;
+            }
+          }
+          else
+          {
+              l_power = 0.0;
+              r_power = 0.0;
+              r_direction = FORWARD;
+              l_direction = FORWARD;
+              state = 3;
+          }
+        }
+        Serial.print("home_heading");
+        Serial.print(",");
+//        Serial.println("theta");
+//        Serial.print(",");
+        Serial.println("rth_heading_output");
+        Serial.print(home_heading);
+        Serial.print(",");
+//        Serial.print(Romi.getPose().theta);
+//        Serial.print(",");
+        Serial.println(rth_heading_output);
+      }
+    }
+    break;
+    case 3:
+    {
+      if( elapsed_time >= 50 )
+      {
+        float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
+        float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? M_PI - alpha : alpha - M_PI;
+        float rth_heading_output = 0.0;
+        float right_output = 0.0;
+        float left_output = 0.0;
+        last_timestamp = millis();    
+        rth_heading_output = rth_heading.update(0.0, home_heading);
+        count++;
+        if(count%2==0)
+        {
+          right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
+          left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
+          count = 0;
+          if(rth_heading_output >0.1)
+          {
+            r_direction = REVERSE;
+            l_direction = FORWARD;
+            }
+          else if(rth_heading_output < -0.1)
+          {
+            r_direction = FORWARD;
+            l_direction = REVERSE;
+          }
+          else if(home_heading < 0.1 && home_heading > -0.1)
+          {
+              l_power = 0.0;
+              r_power = 0.0;
+              r_direction = FORWARD;
+              l_direction = FORWARD;
+          }
+          else
+          {
+            r_direction = FORWARD;
+            l_direction = FORWARD;
+            right_output = max_des_speed/2;
+            left_output= max_des_speed/2;
+          }
+        }
+//        Serial.print("home_heading");
+//        Serial.print(",");
+//        Serial.print("theta");
+//        Serial.print(",");
+//        Serial.println("rth_heading_output");
+//        Serial.print(home_heading);
+//        Serial.print(",");
+//        Serial.print(Romi.getPose().theta);
+//        Serial.print(",");
+//        Serial.println(rth_heading_output);
+        l_power = max(abs((left_output - y_int)/slope), min_power);
+        r_power = max(abs((right_output - y_int)/slope), min_power);
+      }
+    }
+    break;
+}
+  // Send power PWM to pins, to motor drivers.
+  digitalWrite( R_DIR_PIN, r_direction);
+  digitalWrite( L_DIR_PIN, l_direction);
+  analogWrite( L_PWM_PIN, l_power );
+  analogWrite( R_PWM_PIN, r_power );
 
+//Serial.println(elapsed_time);
+//  Serial.print(Romi.getPose().x, 6);
+//  Serial.print(",");
+//  Serial.print(Romi.getPose().y, 6);
+//  Serial.print(",");
+//  Serial.println(Romi.getPose().theta, 6);
+//  Serial.print(l_power);
+//  Serial.print(",");
+//  Serial.println(r_power);
+
+}
+
+/*Test states Put them as needed back into the original code*/
 ////   Debug state!!!!!
 //  case -1:
 //  float left_output = left_wheel.update(max_des_speed-0.5, left_wheel_est);
@@ -248,38 +407,3 @@ switch(state){
 //    l_power = max(min(l_power, max_power),min_power);
 //    r_power = max(min(r_power, max_power),min_power);
 //    break;
-
-  case -3:
-  /*Drive forward a bit so we can figure out if the kinematics are working alright*/
-    if(elapsed_time >=500 && count < 8)
-    {
-    Serial.println("In here");
-//      float forward_power = (3.14 - y_int)/slope;
-  
-      l_power = random(0,50);
-      r_power = random(0,50);
-      count++;
-      last_timestamp = millis();
-    }
-    else if(elapsed_time >=500 && count >= 8)
-    {
-      l_power = 0;
-      r_power = 0; 
-    }
-  break;
-}
-  // Send power PWM to pins, to motor drivers.
-  digitalWrite( R_DIR_PIN, r_direction);
-  digitalWrite( L_DIR_PIN, l_direction);
-  analogWrite( L_PWM_PIN, l_power );
-  analogWrite( R_PWM_PIN, r_power );
-  Serial.print(Romi.getPose().x, 6);
-  Serial.print(",");
-  Serial.print(Romi.getPose().y, 6);
-  Serial.print(",");
-  Serial.println(Romi.getPose().theta, 6);
-//  Serial.print(l_power);
-//  Serial.print(",");
-//  Serial.println(r_power);
-
-}
