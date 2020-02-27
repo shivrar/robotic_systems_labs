@@ -238,8 +238,8 @@ switch(state){
         count++;
         if(count%2==0)
         {
-          right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
-          left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
+          right_output = right_wheel.update(-rth_heading_output/0.05, right_wheel_est);
+          left_output = left_wheel.update(rth_heading_output/0.05, left_wheel_est);
           count = 0;
           if(home_heading > 0.0523599 || home_heading < -0.0523599)
           {
@@ -287,8 +287,8 @@ switch(state){
         count++;
         if(count%2==0)
         {
-          right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
-          left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
+          right_output = right_wheel.update(-rth_heading_output/0.025, right_wheel_est);
+          left_output = left_wheel.update(rth_heading_output/0.025, left_wheel_est);
           count = 0;
           if(abs_distance > 0.005)
           {
