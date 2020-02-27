@@ -31,7 +31,7 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.0, 0.1,0);
 PID left_wheel(0.3, 0.0000,1.0);
 PID right_wheel(0.3, 0.0000,1.0);
-PID heading(0.24,0.0,0.9);
+PID heading(0.5,0.0,0.9);
 PID rth_heading(0.2,0.0,0.0);
 
 
@@ -42,7 +42,7 @@ volatile bool r_direction;
 volatile float m;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
-int state = -3;
+int state = 0;
 
 LineSensor l_sensor(LINE_LEFT_PIN);
 LineSensor c_sensor(LINE_CENTRE_PIN);
@@ -120,9 +120,6 @@ void setup() {
   last_timestamp = millis();
   
 }
-
-//TODO: Implement the probablistic nature now for the robot with confidence values.
-
 ////N.B. e0 = left wheel, e1 = right wheel
 // Remmeber, loop is called again and again.
 void loop() 
@@ -145,7 +142,6 @@ switch(state){
       r_power = min(r_power + 4, min_power);
       r_direction = FORWARD;
     }
-  
     else
     {
       l_power = 0;
@@ -164,8 +160,8 @@ switch(state){
     float heading_output = 0.0;
     float right_output = 0.0;
     float left_output = 0.0;
-    if( elapsed_time >= 40 ) {
-
+    if( elapsed_time >= 40) 
+    {
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
       count++;
@@ -194,32 +190,17 @@ switch(state){
           left_output= max_des_speed/2;
         }
       }
+    }
     l_power = max(abs((left_output - y_int)/slope), min_power);
     r_power = max(abs((right_output - y_int)/slope), min_power);
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 350)
+    {
+      l_power = 0.0;
+      r_power = 0.0;
+      state = 2;
+    }    
     }
     break;
-    
-    }
-    
-    case -3:
-    {
-    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
-      if(elapsed_time >=500 && count < 8)
-      {
-//        Serial.println("In here");  
-        l_power = random(0,50);
-        r_power = random(0,50);
-        count++;
-        last_timestamp = millis();
-      }
-      else if(elapsed_time >=500 && count >= 8)
-      {
-        l_power = 0;
-        r_power = 0; 
-        state = 2;
-      }
-      break;
-    }
     case 2:
     {
     /*Return to home - 
@@ -310,13 +291,13 @@ switch(state){
               l_direction = FORWARD;
               right_output = 0.0;
               left_output = 0.0;
-              state = 4;  
+              state = 4;
           }
         }
         l_power = max(abs((left_output - y_int)/slope), min_power);
         r_power = max(abs((right_output - y_int)/slope), min_power);
-        Serial.println("Abs_distance,");
-        Serial.print(abs_distance);
+//        Serial.println("Abs_distance,");
+//        Serial.print(abs_distance);
       }
     }
     break;
@@ -325,8 +306,8 @@ switch(state){
         l_power = 0.0;
         r_power = 0.0;
         // Finished
-        break;
     }
+    break;
 }
   // Send power PWM to pins, to motor drivers.
   digitalWrite( R_DIR_PIN, r_direction);
@@ -334,7 +315,7 @@ switch(state){
   analogWrite( L_PWM_PIN, l_power );
   analogWrite( R_PWM_PIN, r_power );
 
-//Serial.println(elapsed_time);
+Serial.println(state);
 //  Serial.print(Romi.getPose().x, 6);
 //  Serial.print(",");
 //  Serial.print(Romi.getPose().y, 6);
@@ -401,3 +382,23 @@ switch(state){
 //    l_power = max(min(l_power, max_power),min_power);
 //    r_power = max(min(r_power, max_power),min_power);
 //    break;
+
+    
+//    case -3:
+//    {
+//    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
+//      if(elapsed_time >=500 && count < 8)
+//      {
+//        l_power = random(0,50);
+//        r_power = random(0,50);
+//        count++;
+//        last_timestamp = millis();
+//      }
+//      else if(elapsed_time >=500 && count >= 8)
+//      {
+//        l_power = 0;
+//        r_power = 0; 
+//        state = 2;
+//      }
+//      break;
+//    }
