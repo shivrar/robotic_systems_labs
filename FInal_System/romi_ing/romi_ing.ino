@@ -9,7 +9,7 @@
 // TODO: Look at the idea of confidence for line following for the robot. 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-volatile float confidence;
+volatile double confidence = -1.0;
 
 float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 50; // ~5.06
@@ -29,10 +29,10 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.1, 0.085,0.1);
 //PID left_wheel(1.0, 0.1,0);
 //PID right_wheel(1.0, 0.1,0);
-PID left_wheel(0.3, 0.0000,1.0);
-PID right_wheel(0.3, 0.0000,1.0);
-PID heading(0.5,0.0,0.9);
-PID rth_heading(0.2,0.0,0.0);
+PID left_wheel(0.3, 0.0000,1.1);
+PID right_wheel(0.3, 0.0000,1.1);
+PID heading(0.3,0.0,0.9);
+PID rth_heading(0.4,0.0,0.0);
 
 
 volatile byte l_power;
@@ -84,7 +84,17 @@ ISR( TIMER3_COMPA_vect ) {
   
   prev_theta_e0 = theta_e0;
   prev_theta_e1 = theta_e1;
-
+  if(state == 0 || state ==1){
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
+    {
+      confidence -= 0.015;
+    }
+    else
+    {
+      confidence += 0.004;
+    }
+    confidence = max(min(1, confidence), -1); 
+  }
 }
 
 void setup() {
@@ -137,20 +147,25 @@ switch(state){
   {
     if(l_sensor.readCalibrated()<300 && c_sensor.readCalibrated()<300 && r_sensor.readCalibrated()< 300)
     {
-      l_power = min(l_power + 4, min_power);
+      l_power = min(l_power + 1, min_power);
       l_direction = FORWARD;
-      r_power = min(r_power + 4, min_power);
+      r_power = min(r_power + 1, min_power);
       r_direction = FORWARD;
     }
     else
     {
       l_power = 0;
       r_power = 0;
-      state = 1;
-      play_tone(6, 125);
-      delay(250);
-      play_tone(6, 0);
+    }
+    if(confidence >=-0.5)
+    {
+      l_power = 0;
+      r_power = 0;
+//      play_tone(6, 125);
+//      delay(100);
+//      analogWrite(6, 0);
       last_timestamp = millis();
+      state = 1;
     }
   }
   break;
@@ -160,7 +175,7 @@ switch(state){
     float heading_output = 0.0;
     float right_output = 0.0;
     float left_output = 0.0;
-    if( elapsed_time >= 40) 
+    if( elapsed_time >= 50) 
     {
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
@@ -186,19 +201,24 @@ switch(state){
         {
           r_direction = FORWARD;
           l_direction = FORWARD;
-          right_output = max_des_speed/2;
-          left_output= max_des_speed/2;
+          right_output = max_des_speed/3;
+          left_output= max_des_speed/3;
         }
       }
     }
     l_power = max(abs((left_output - y_int)/slope), min_power);
     r_power = max(abs((right_output - y_int)/slope), min_power);
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 350)
+    
+    if(confidence <=-0.8)
     {
       l_power = 0.0;
       r_power = 0.0;
+      heading.reset();
+      right_wheel.reset();
+      left_wheel.reset();
       state = 2;
-    }    
+      break;  
+    }
     }
     break;
     case 2:
@@ -206,7 +226,7 @@ switch(state){
     /*Return to home - 
       First lets look at home
     */
-      if( elapsed_time >= 40 )
+      if( elapsed_time >= 50 )
       {
         float right_output = 0.0;
         float left_output = 0.0;
@@ -240,11 +260,16 @@ switch(state){
               r_power = 0.0;
               r_direction = FORWARD;
               l_direction = FORWARD;
+              right_wheel.reset();
+              left_wheel.reset();
+              rth_heading.reset();
               state = 3;
           }
         }
         l_power = max(abs((left_output - y_int)/slope), min_power);
         r_power = max(abs((right_output - y_int)/slope), min_power);
+//        Serial.print(rth_heading_output);
+//        Serial.print(",");
       }
     }
     break;
@@ -265,7 +290,7 @@ switch(state){
           right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
           left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
           count = 0;
-          if(abs_distance > 0.015)
+          if(abs_distance > 0.005)
           {
             if(rth_heading_output >0.0698132)
             {
@@ -281,8 +306,8 @@ switch(state){
             {
               r_direction = FORWARD;
               l_direction = FORWARD;
-              right_output = max_des_speed/2;
-              left_output = max_des_speed/2;
+              right_output = max_des_speed/4;
+              left_output = max_des_speed/4;
             }
           }
           else
@@ -291,6 +316,9 @@ switch(state){
               l_direction = FORWARD;
               right_output = 0.0;
               left_output = 0.0;
+              right_wheel.reset();
+              left_wheel.reset();
+              rth_heading.reset();
               state = 4;
           }
         }
@@ -315,16 +343,9 @@ switch(state){
   analogWrite( L_PWM_PIN, l_power );
   analogWrite( R_PWM_PIN, r_power );
 
+//Serial.print(confidence);
+//Serial.print(",");
 Serial.println(state);
-//  Serial.print(Romi.getPose().x, 6);
-//  Serial.print(",");
-//  Serial.print(Romi.getPose().y, 6);
-//  Serial.print(",");
-//  Serial.println(Romi.getPose().theta, 6);
-//  Serial.print(l_power);
-//  Serial.print(",");
-//  Serial.println(r_power);
-
 }
 
 /*Test states Put them as needed back into the original code*/
