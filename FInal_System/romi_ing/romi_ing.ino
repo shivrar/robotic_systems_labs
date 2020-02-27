@@ -92,7 +92,7 @@ void setup() {
   left_wheel.setMax(max_des_speed);
   right_wheel.setMax(max_des_speed);
   heading.setMax(1.0);
-  rth_heading.setMax(M_PI_4);
+  rth_heading.setMax(2*M_PI);
 
   
   pinMode(13, OUTPUT);
