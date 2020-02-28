@@ -9,12 +9,10 @@
 // TODO: Look at the idea of confidence for line following for the robot. 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-volatile double confidence = -1.0;
-
 float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 50; // ~5.06
-int min_power = 20;
-float max_des_speed = 6.0;
+int min_power = 15;
+float max_des_speed = 7.2;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
 
@@ -34,16 +32,20 @@ PID right_wheel(0.3, 0.0000,1.1);
 PID heading(0.3,0.0,0.9);
 PID rth_heading(0.05,0.0,0.0);
 
-
+/*Passed between states*/
 volatile byte l_power;
 volatile byte r_power;
 volatile bool l_direction;
 volatile bool r_direction;
 volatile float m;
+unsigned long last_timestamp;
+int count = 0;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
-int state = -3;
+int state = 0;
+bool isClose = false;
 
+/*Sensors*/
 LineSensor l_sensor(LINE_LEFT_PIN);
 LineSensor c_sensor(LINE_CENTRE_PIN);
 LineSensor r_sensor(LINE_RIGHT_PIN);
@@ -62,11 +64,10 @@ volatile double right_wheel_vel;
 volatile double right_wheel_est;
 SimpleKalmanFilter left_filter(0.3,0.1,0.01);
 SimpleKalmanFilter right_filter(0.3,0.1,0.01);
+volatile double confidence = -1.0;
 
 //Control loop timers
-unsigned long last_timestamp;
 Kinematics2D::Kinematics Romi(0.14, 0.035);
-int count = 0;
 
 ISR( TIMER3_COMPA_vect ) {
 //  Do speed calcs and odom in here
@@ -95,6 +96,19 @@ ISR( TIMER3_COMPA_vect ) {
     }
     confidence = max(min(1, confidence), -1); 
   }
+}
+
+void stateCleanup(void)
+{
+        r_direction = FORWARD;
+        l_direction = FORWARD;
+        right_wheel.reset();
+        left_wheel.reset();
+        rth_heading.reset();
+        rth_heading.reset(); 
+        l_power = 0.0;
+        r_power =0.0;
+        last_timestamp = millis(); 
 }
 
 void setup() {
@@ -130,8 +144,7 @@ void setup() {
   last_timestamp = millis();
   
 }
-////N.B. e0 = left wheel, e1 = right wheel
-// Remmeber, loop is called again and again.
+
 void loop() 
 {
 
@@ -147,9 +160,9 @@ switch(state){
   {
     if(l_sensor.readCalibrated()<300 && c_sensor.readCalibrated()<300 && r_sensor.readCalibrated()< 300)
     {
-      l_power = min(l_power + 1, min_power);
+      l_power = min(l_power + 5, min_power);
       l_direction = FORWARD;
-      r_power = min(r_power + 1, min_power);
+      r_power = min(r_power + 5, min_power);
       r_direction = FORWARD;
     }
     else
@@ -159,12 +172,7 @@ switch(state){
     }
     if(confidence >=-0.2)
     {
-      l_power = 0;
-      r_power = 0;
-//      play_tone(6, 125);
-//      delay(100);
-//      analogWrite(6, 0);
-      last_timestamp = millis();
+      stateCleanup();
       state = 1;
     }
   }
@@ -209,48 +217,29 @@ switch(state){
     
     if(confidence <=-1.0)
     {
-      l_power = 0.0;
-      r_power = 0.0;
-      heading.reset();
-      right_wheel.reset();
-      left_wheel.reset();
+      stateCleanup();
       state = 2;
       break;  
     }
     }
     break;
-    case -3:
-    {
-    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
-      if(elapsed_time >=500 && count < 8)
-      {
-//        l_power = random(0,50);
-//        r_power = random(0,50);
-        l_power = 20;
-        r_power = 20;
-        count++;
-        last_timestamp = millis();
-      }
-      else if(elapsed_time >=500 && count >= 8)
-      {
-        l_power = 0;
-        r_power = 0; 
-        state = 2;
-      }
-      break;
-    }
     case 2:
     {
     /*Return to home - 
       First lets look at home
     */
-      if( elapsed_time >= 50 )
+      if( elapsed_time >= 20 )
       {
         float right_output = 0.0;
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-        float ang_vel = rth_heading.update(0.0, -home_heading)/0.5;        
+        float ang_vel = rth_heading.update(0.0, -home_heading)/0.1;
+        float head_tol = 0.1;
+        if(isClose)
+        {
+          head_tol = 0.06;
+        }
         
         last_timestamp = millis();   
         count++;
@@ -258,7 +247,7 @@ switch(state){
         if(count%2==0)
         {
           count = 0;
-          if(home_heading > 0.0723599 || home_heading < -0.0723599)
+          if(home_heading > head_tol || home_heading < -head_tol)
           {
               float right_wheel_speed, left_wheel_speed;
               Romi.robotVelToWheelVels(0.0, ang_vel, left_wheel_speed, right_wheel_speed);
@@ -285,20 +274,17 @@ switch(state){
           }
           else
           {
-              left_output = 0.0;
-              right_output = 0.0;
-              l_power = 0.0;
-              r_power = 0.0;
-              r_direction = FORWARD;
-              l_direction = FORWARD;
-              right_wheel.reset();
-              left_wheel.reset();
-              rth_heading.reset();
+              stateCleanup();
               state = 3;
           }
         }
         l_power = max(abs((left_output - y_int)/slope), min_power);
         r_power = max(abs((right_output - y_int)/slope), min_power);
+//        Serial.print(head_tol,6);
+//        Serial.print(",");
+//        Serial.print(-head_tol,6);
+//        Serial.print(",");
+//        Serial.println(home_heading,6);
       }
     }
     break;
@@ -309,56 +295,59 @@ switch(state){
         float right_output = 0.0;
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
-        float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? alpha - M_PI  : M_PI - alpha;
-        float rth_heading_output = rth_heading.update(0.0, home_heading);
-        // This returns a value to turn so we should convert this into wheel speeds
-        /*TODOOOOOOOOOOOOOOOOOOOOO: Fix this we need to convert these into angular velocities and then wheel speeds*/
-        // REPEAT IN THE PREVIOUS STEP WHAT WE DID FOR THE HEADING AND ANGULAR VELOCITY
-        float wheel_speed = max(min(rth_heading_output/0.5, max_des_speed), max_des_speed);
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
+        float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
+        float ang_vel = rth_heading.update(0.0, -home_heading);        
+
+        if( !isClose  && abs_distance < 0.1)
+        {
+          // Re-orient when we are close
+          isClose = true;
+          stateCleanup();
+          state = 2;
+          break;
+        }
+        
         last_timestamp = millis();    
         count++;
         if(count%2==0)
         {
-          right_output = right_wheel.update(-wheel_speed, right_wheel_est);
-          left_output = left_wheel.update(wheel_speed, left_wheel_est);
+          float right_wheel_speed, left_wheel_speed;
+          Romi.robotVelToWheelVels(0.1, ang_vel, left_wheel_speed, right_wheel_speed);
+//          right_output = right_wheel.update(right_wheel_speed, right_wheel_est);
+//          left_output = left_wheel.update(left_wheel_speed, left_wheel_est);
+          right_output = right_wheel_speed;
+          left_output = left_wheel_speed;
           count = 0;
           if(abs_distance > 0.01)
           {
-            if(rth_heading_output >0.0698132)
-            {
-              r_direction = REVERSE;
-              l_direction = FORWARD;
-            }
-            else if(rth_heading_output < -0.0698132)
-            {
-              r_direction = FORWARD;
-              l_direction = REVERSE;
-            }
-            else
-            {
-              r_direction = FORWARD;
-              l_direction = FORWARD;
-              right_output = max_des_speed/4;
-              left_output = max_des_speed/4;
-            }
+              if(left_output < 0)
+              {
+                l_direction = REVERSE;  
+              }
+              else
+              {
+                l_direction = FORWARD;
+              }
+                
+              if(right_output < 0)
+              {
+                r_direction = REVERSE;  
+              }
+              else
+              {
+                r_direction = FORWARD;
+              }
           }
           else
           {
-              r_direction = FORWARD;
-              l_direction = FORWARD;
-              right_output = 0.0;
-              left_output = 0.0;
-              right_wheel.reset();
-              left_wheel.reset();
-              rth_heading.reset();
+              stateCleanup();
               state = 4;
           }
         }
         l_power = max(abs((left_output - y_int)/slope), min_power);
         r_power = max(abs((right_output - y_int)/slope), min_power);
-//        Serial.println("Abs_distance,");
-//        Serial.print(abs_distance);
+
       }
     }
     break;
@@ -452,6 +441,26 @@ switch(state){
 //      {
 //        l_power = 0;
 //        r_power = 0; 
+//        state = 2;
+//      }
+//      break;
+//    }
+
+//    case -3:
+//    {
+//    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
+//      if(elapsed_time >=500 && count < 8)
+//      {
+//        l_power = random(0,50);
+//        r_power = random(0,50);
+////        l_power = 25;
+////        r_power = 25;
+//        count++;
+//        last_timestamp = millis();
+//      }
+//      else if(elapsed_time >=500 && count >= 8)
+//      {
+//        stateCleanup();
 //        state = 2;
 //      }
 //      break;
