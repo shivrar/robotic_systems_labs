@@ -32,7 +32,7 @@ float slope = 0.1056, y_int = 0.287;
 PID left_wheel(0.3, 0.0000,1.1);
 PID right_wheel(0.3, 0.0000,1.1);
 PID heading(0.3,0.0,0.9);
-PID rth_heading(0.3,0.0,0.1);
+PID rth_heading(0.05,0.0,0.0);
 
 
 volatile byte l_power;
@@ -42,7 +42,7 @@ volatile bool r_direction;
 volatile float m;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
-int state = 0;
+int state = -3;
 
 LineSensor l_sensor(LINE_LEFT_PIN);
 LineSensor c_sensor(LINE_CENTRE_PIN);
@@ -102,7 +102,7 @@ void setup() {
   left_wheel.setMax(max_des_speed);
   right_wheel.setMax(max_des_speed);
   heading.setMax(1.0);
-  rth_heading.setMax(2*M_PI);
+  rth_heading.setMax(M_PI);
 
   
   pinMode(13, OUTPUT);
@@ -182,8 +182,6 @@ switch(state){
       count++;
       if(count%2==0)
       {
-//        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
-//        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
         right_output = right_wheel.update(heading_output*(0.45*max_des_speed), right_wheel_est);
         left_output = left_wheel.update(-heading_output*(0.45*max_des_speed), left_wheel_est);
         count = 0;
@@ -221,6 +219,26 @@ switch(state){
     }
     }
     break;
+    case -3:
+    {
+    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
+      if(elapsed_time >=500 && count < 8)
+      {
+//        l_power = random(0,50);
+//        r_power = random(0,50);
+        l_power = 20;
+        r_power = 20;
+        count++;
+        last_timestamp = millis();
+      }
+      else if(elapsed_time >=500 && count >= 8)
+      {
+        l_power = 0;
+        r_power = 0; 
+        state = 2;
+      }
+      break;
+    }
     case 2:
     {
     /*Return to home - 
@@ -231,35 +249,44 @@ switch(state){
         float right_output = 0.0;
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
-        float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? M_PI - alpha : alpha - M_PI;
-        float rth_heading_output = rth_heading.update(0.0, home_heading);
-        // This returns a value to turn so we should convert this into wheel speeds
-        /*TODOOOOOOOOOOOOOOOOOOOOO: Fix this we need to convert these into angular velocities and then wheel speeds*/
-        float wheel_speed = max(min(rth_heading_output, max_des_speed), max_des_speed);
+        float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
+        float ang_vel = rth_heading.update(0.0, -home_heading)/0.5;        
         
-        float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         last_timestamp = millis();   
         count++;
+        
         if(count%2==0)
         {
-          right_output = right_wheel.update(-wheel_speed, right_wheel_est);
-          left_output = left_wheel.update(wheel_speed, left_wheel_est);
           count = 0;
           if(home_heading > 0.0723599 || home_heading < -0.0723599)
           {
-            if(rth_heading_output >0.0523599)
-            {
-              r_direction = REVERSE;
-              l_direction = FORWARD;
+              float right_wheel_speed, left_wheel_speed;
+              Romi.robotVelToWheelVels(0.0, ang_vel, left_wheel_speed, right_wheel_speed);
+              // Don't Actually need the PID xD just want the romi to turn until it sees the heding
+              right_output = right_wheel_speed;
+              left_output = left_wheel_speed;             
+              if(left_output < 0)
+              {
+                l_direction = REVERSE;  
               }
-            else if(rth_heading_output < -0.0523599)
-            {
-              r_direction = FORWARD;
-              l_direction = REVERSE;
-            }
+              else
+              {
+                l_direction = FORWARD;
+              }
+                
+              if(right_output < 0)
+              {
+                r_direction = REVERSE;  
+              }
+              else
+              {
+                r_direction = FORWARD;
+              }
           }
           else
           {
+              left_output = 0.0;
+              right_output = 0.0;
               l_power = 0.0;
               r_power = 0.0;
               r_direction = FORWARD;
@@ -272,8 +299,6 @@ switch(state){
         }
         l_power = max(abs((left_output - y_int)/slope), min_power);
         r_power = max(abs((right_output - y_int)/slope), min_power);
-//        Serial.print(rth_heading_output);
-//        Serial.print(",");
       }
     }
     break;
@@ -284,10 +309,11 @@ switch(state){
         float right_output = 0.0;
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
-        float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? M_PI - alpha : alpha - M_PI;
+        float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? alpha - M_PI  : M_PI - alpha;
         float rth_heading_output = rth_heading.update(0.0, home_heading);
         // This returns a value to turn so we should convert this into wheel speeds
         /*TODOOOOOOOOOOOOOOOOOOOOO: Fix this we need to convert these into angular velocities and then wheel speeds*/
+        // REPEAT IN THE PREVIOUS STEP WHAT WE DID FOR THE HEADING AND ANGULAR VELOCITY
         float wheel_speed = max(min(rth_heading_output/0.5, max_des_speed), max_des_speed);
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         last_timestamp = millis();    
