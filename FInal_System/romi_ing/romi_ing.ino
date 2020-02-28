@@ -32,7 +32,7 @@ float slope = 0.1056, y_int = 0.287;
 PID left_wheel(0.3, 0.0000,1.1);
 PID right_wheel(0.3, 0.0000,1.1);
 PID heading(0.3,0.0,0.9);
-PID rth_heading(0.4,0.0,0.0);
+PID rth_heading(0.3,0.0,0.1);
 
 
 volatile byte l_power;
@@ -87,7 +87,7 @@ ISR( TIMER3_COMPA_vect ) {
   if(state == 0 || state ==1){
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
-      confidence -= 0.015;
+      confidence -= 0.004;
     }
     else
     {
@@ -157,7 +157,7 @@ switch(state){
       l_power = 0;
       r_power = 0;
     }
-    if(confidence >=-0.5)
+    if(confidence >=-0.2)
     {
       l_power = 0;
       r_power = 0;
@@ -209,7 +209,7 @@ switch(state){
     l_power = max(abs((left_output - y_int)/slope), min_power);
     r_power = max(abs((right_output - y_int)/slope), min_power);
     
-    if(confidence <=-0.8)
+    if(confidence <=-1.0)
     {
       l_power = 0.0;
       r_power = 0.0;
@@ -233,15 +233,19 @@ switch(state){
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? M_PI - alpha : alpha - M_PI;
         float rth_heading_output = rth_heading.update(0.0, home_heading);
+        // This returns a value to turn so we should convert this into wheel speeds
+        /*TODOOOOOOOOOOOOOOOOOOOOO: Fix this we need to convert these into angular velocities and then wheel speeds*/
+        float wheel_speed = max(min(rth_heading_output, max_des_speed), max_des_speed);
+        
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         last_timestamp = millis();   
         count++;
         if(count%2==0)
         {
-          right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
-          left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
+          right_output = right_wheel.update(-wheel_speed, right_wheel_est);
+          left_output = left_wheel.update(wheel_speed, left_wheel_est);
           count = 0;
-          if(home_heading > 0.0523599 || home_heading < -0.0523599)
+          if(home_heading > 0.0723599 || home_heading < -0.0723599)
           {
             if(rth_heading_output >0.0523599)
             {
@@ -275,22 +279,25 @@ switch(state){
     break;
     case 3:
     {
-      if( elapsed_time >= 25 )
+      if( elapsed_time >= 50)
       {
         float right_output = 0.0;
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI) ? M_PI - alpha : alpha - M_PI;
         float rth_heading_output = rth_heading.update(0.0, home_heading);
+        // This returns a value to turn so we should convert this into wheel speeds
+        /*TODOOOOOOOOOOOOOOOOOOOOO: Fix this we need to convert these into angular velocities and then wheel speeds*/
+        float wheel_speed = max(min(rth_heading_output/0.5, max_des_speed), max_des_speed);
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         last_timestamp = millis();    
         count++;
         if(count%2==0)
         {
-          right_output = right_wheel.update(-rth_heading_output/elapsed_time, right_wheel_est);
-          left_output = left_wheel.update(rth_heading_output/elapsed_time, left_wheel_est);
+          right_output = right_wheel.update(-wheel_speed, right_wheel_est);
+          left_output = left_wheel.update(wheel_speed, left_wheel_est);
           count = 0;
-          if(abs_distance > 0.005)
+          if(abs_distance > 0.01)
           {
             if(rth_heading_output >0.0698132)
             {
@@ -345,7 +352,7 @@ switch(state){
 
 //Serial.print(confidence);
 //Serial.print(",");
-Serial.println(state);
+//Serial.println(state);
 }
 
 /*Test states Put them as needed back into the original code*/
