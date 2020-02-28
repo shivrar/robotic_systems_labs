@@ -88,8 +88,8 @@ namespace Kinematics2D{
   {
     /* Given the robot linear x velocity and agular yaw velocity derive how much the wheel velocites are*/
 
-    wheel_speed_L = (liner_x - (ang_z*wheel_separation_/2))/this->wheel_radius_ ;
-    wheel_speed_R = (liner_x + (ang_z*wheel_separation_/2))/this->wheel_radius_ ;
+    wheel_speed_L = (liner_x - (ang_z*wheel_separation_/2))/wheel_radius_ ;
+    wheel_speed_R = (liner_x + (ang_z*wheel_separation_/2))/wheel_radius_ ;
     
   }
   
