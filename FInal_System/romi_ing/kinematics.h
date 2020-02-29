@@ -33,6 +33,7 @@ namespace Kinematics2D{
       Kinematics(float, float);
       void update(float, float, float);
       Pose2D getPose();
+      void robotVelToWheelVels(float, float, float&, float&);
             
     private:
       //Private variables and methods go here
@@ -41,8 +42,6 @@ namespace Kinematics2D{
 
       float wheel_separation_;
       float wheel_radius_;
-      float last_l_vel_;
-      float last_r_vel_;
   };
   
   
@@ -50,8 +49,7 @@ namespace Kinematics2D{
   Kinematics::Kinematics(float wheel_separation, float wheel_radius)
   :wheel_separation_(wheel_separation),  wheel_radius_(wheel_radius)
   {
-  
-  
+    last_update_time_ = 0.0;
   }
   
   void Kinematics::update(float left_wheel_vel, float right_wheel_vel, float current_time) {
@@ -85,6 +83,16 @@ namespace Kinematics2D{
   {
     return pose_encoder_;
   }
+
+  void Kinematics::robotVelToWheelVels(float liner_x, float ang_z, float& wheel_speed_L, float& wheel_speed_R)
+  {
+    /* Given the robot linear x velocity and agular yaw velocity derive how much the wheel velocites are*/
+
+    wheel_speed_L = (liner_x - (ang_z*wheel_separation_/2))/wheel_radius_ ;
+    wheel_speed_R = (liner_x + (ang_z*wheel_separation_/2))/wheel_radius_ ;
+    
+  }
+  
 
 }
 
