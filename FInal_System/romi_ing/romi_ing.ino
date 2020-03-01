@@ -11,9 +11,9 @@
 
 float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 35; // ~5.06
-int min_power = 18;
+int min_power = 20;
 float max_des_speed = 6.0;
-static float max_ang_vel = M_PI_2/4;
+static float max_ang_vel = M_PI_2/2;
 static float max_linear_vel = 0.01;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
@@ -32,7 +32,7 @@ float slope = 0.1056, y_int = 0.287;
 PID left_wheel(0.8, 0.0000,1.1);
 PID right_wheel(0.8, 0.0000,1.1);
 PID heading(0.3,0.0,0.08);
-PID rth_heading(0.01,0.0,0.0);
+PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
 
@@ -240,16 +240,16 @@ switch(state){
     case -3:
     {
     /*Drive forward a bit so we can figure out if the kinematics are working alright*/
-      if(elapsed_time >=500 && count < 4)
+      if(elapsed_time >=500 && count < 6)
       {
-//        l_power = random(0,50);
-//        r_power = random(0,50);
-        l_power = 30;
-        r_power = 20;
+        l_power = random(0,50);
+        r_power = random(0,50);
+//        l_power = 30;
+//        r_power = 30;
         count++;
         last_timestamp = millis();
       }
-      else if(elapsed_time >=500 && count >= 4)
+      else if(elapsed_time >=500 && count >= 6)
       {
         stateCleanup();
         state = 2;
@@ -275,11 +275,6 @@ switch(state){
           current_rotation = (home_heading >=0.0) ? 1.0:-1.0;
         }
         float head_tol = M_PI/180.0;
-//        if(isClose)
-//        {
-//          head_tol = M_PI/360.0;
-//        }
-//        
         last_timestamp = millis();   
         count++;
         
@@ -318,8 +313,6 @@ switch(state){
               break;
           }
         }
-//        l_power = max(min(abs((left_output - y_int)/slope), min_power), max_des_speed/2.0);
-//        r_power = max(min(abs((right_output - y_int)/slope), min_power),max_des_speed/2.0);
         l_power = min(max(abs((left_output - y_int)/slope), min_power), max_power);
         r_power = min(max(abs((right_output - y_int)/slope), min_power), max_power);
       }
@@ -334,7 +327,7 @@ switch(state){
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-        float ang_vel = max(min(rth_heading.update(0.0, home_heading)/(0.05), max_ang_vel), -max_ang_vel);
+        float ang_vel = rth_heading.update(0.0, home_heading);
 //        float lin_vel = 0.05;
         if( !isClose  && abs_distance < 0.1)
         {
@@ -350,14 +343,14 @@ switch(state){
         if(count%2==0)
         {
           float right_wheel_speed, left_wheel_speed;
-          
-          if(ang_vel>0.872665)
+          // BAng Bang RTH could do some cleaner logic but a working thing right right now
+          if(ang_vel>0.125 && !isClose)
           {
-            Romi.robotVelToWheelVels(max_linear_vel, -0.5*max_ang_vel, left_wheel_speed, right_wheel_speed);
+            Romi.robotVelToWheelVels(max_linear_vel, max_ang_vel, left_wheel_speed, right_wheel_speed);
           }
-          else if(ang_vel<-0.872665)
+          else if(ang_vel<-0.125 && !isClose)
           {
-            Romi.robotVelToWheelVels(max_linear_vel,0.5*max_ang_vel, left_wheel_speed, right_wheel_speed);
+            Romi.robotVelToWheelVels(max_linear_vel,-max_ang_vel, left_wheel_speed, right_wheel_speed);
           }
           else
           {
@@ -368,7 +361,7 @@ switch(state){
           right_output = right_wheel_speed;
           left_output = left_wheel_speed;
           count = 0;
-          if(abs_distance > 0.01)
+          if(abs_distance > 0.01 && Romi.getPose().x >= 0)
           {
               if(left_output < 0)
               {
@@ -388,12 +381,6 @@ switch(state){
                 r_direction = FORWARD;
               }
           }
-          else if(Romi.getPose().x < 0) // we overshot so lets look back and the goal
-          {
-            stateCleanup();
-            state = 2;
-            break;
-          }
           else
           {
               stateCleanup();
@@ -401,14 +388,8 @@ switch(state){
               break;
           }
         }
-        l_power = min(max(abs((left_output - y_int)/slope), min_power-2), max_power);
-        r_power = min(max(abs((right_output - y_int)/slope), min_power-2), max_power);
-        Serial.print(Romi.getPose().x);
-        Serial.print(",");
-//        Serial.print(left_output);
-//        Serial.print(",");
-        Serial.println(Romi.getPose().y);
-
+        l_power = min(max(abs((left_output - y_int)/slope), min_power), max_power);
+        r_power = min(max(abs((right_output - y_int)/slope), min_power), max_power);
       }
     }
     break;
@@ -416,6 +397,9 @@ switch(state){
     {
         l_power = 0.0;
         r_power = 0.0;
+        Serial.print(Romi.getPose().x);
+        Serial.print(",");
+        Serial.println(Romi.getPose().y);
         // Finished
     }
     break;
