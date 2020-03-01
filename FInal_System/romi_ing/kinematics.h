@@ -34,6 +34,8 @@ namespace Kinematics2D{
       void update(float, float, float);
       Pose2D getPose();
       void robotVelToWheelVels(float, float, float&, float&);
+      float getRobotLinearX();
+      float getRobotAngZ();
             
     private:
       //Private variables and methods go here
@@ -42,6 +44,8 @@ namespace Kinematics2D{
 
       float wheel_separation_;
       float wheel_radius_;
+      float linear_x_;
+      float ang_z_;
   };
   
   
@@ -50,6 +54,8 @@ namespace Kinematics2D{
   :wheel_separation_(wheel_separation),  wheel_radius_(wheel_radius)
   {
     last_update_time_ = 0.0;
+    linear_x_ = 0.0;
+    ang_z_ = 0.0;
   }
   
   void Kinematics::update(float left_wheel_vel, float right_wheel_vel, float current_time) {
@@ -72,6 +78,9 @@ namespace Kinematics2D{
     pose_encoder_.y += dy;
     pose_encoder_.theta += dtheta;
 
+    linear_x_ = (left_wheel_vel + right_wheel_vel)*wheel_radius_/2.0;
+    ang_z_ = (right_wheel_vel - left_wheel_vel)* wheel_radius_/wheel_separation_;
+
     //Lets normalise the angle
     pose_encoder_.theta = fmod(pose_encoder_.theta ,2.0*M_PI);
 
@@ -92,7 +101,16 @@ namespace Kinematics2D{
     wheel_speed_R = (liner_x + (ang_z*wheel_separation_/2))/wheel_radius_ ;
     
   }
-  
+
+  float Kinematics::getRobotLinearX()
+  {
+    return linear_x_;
+  }
+
+  float Kinematics::getRobotAngZ()
+  {
+  return ang_z_;
+  }
 
 }
 
