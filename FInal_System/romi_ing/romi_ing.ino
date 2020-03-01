@@ -11,10 +11,10 @@
 
 float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 35; // ~5.06
-int min_power = 18;
+int min_power = 20;
 float max_des_speed = 6.0;
 static float max_ang_vel = M_PI_2/2.0;
-static float max_linear_vel = 0.01;
+static float max_linear_vel = 0.02;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
 
@@ -29,9 +29,9 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.1, 0.085,0.1);
 //PID left_wheel(1.0, 0.1,0);
 //PID right_wheel(1.0, 0.1,0);
-PID left_wheel(0.8, 0.0000,1.1);
-PID right_wheel(0.8, 0.0000,1.1);
-PID heading(0.3,0.0,0.08);
+PID left_wheel(0.6, 0.0000,1.1);
+PID right_wheel(0.6, 0.0000,1.1);
+PID heading(0.3,0.0,0.09);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -92,9 +92,9 @@ ISR( TIMER3_COMPA_vect ) {
   prev_theta_e0 = theta_e0;
   prev_theta_e1 = theta_e1;
   if(state == 0 || state ==1){
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 70)
     {
-      confidence -= 0.006;
+      confidence -= 0.004;
     }
     else
     {
@@ -167,7 +167,7 @@ switch(state){
  
   case 0:
   {
-    if(l_sensor.readCalibrated()<300 && c_sensor.readCalibrated()<300 && r_sensor.readCalibrated()< 300)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
       l_power = min(l_power + 5, min_power);
       l_direction = FORWARD;
@@ -201,17 +201,17 @@ switch(state){
       count++;
       if(count%2==0)
       {
-//        right_output = right_wheel.update(heading_output*(0.45*max_des_speed), right_wheel_est);
-//        left_output = left_wheel.update(-heading_output*(0.45*max_des_speed), left_wheel_est);
+//        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
+//        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
         left_output= -heading_output*(0.4*max_des_speed);
         right_output = heading_output*(0.4*max_des_speed);
         count = 0;
-        if(heading_output >0.09)
+        if(heading_output >0.1)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
         }
-        else if(heading_output < -0.09)
+        else if(heading_output < -0.1)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
@@ -220,13 +220,13 @@ switch(state){
         {
           r_direction = FORWARD;
           l_direction = FORWARD;
-          right_output = max_des_speed/4;
-          left_output= max_des_speed/4;
+          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
+          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
         }
       }
     }
-    l_power = max(abs((left_output - y_int)/slope), min_power);
-    r_power = max(abs((right_output - y_int)/slope), min_power);
+    l_power = max(abs((left_output - y_int)/slope), min_power+2);
+    r_power = max(abs((right_output - y_int)/slope), min_power+2);
     
     if(confidence <=-1.0)
     {
@@ -289,12 +289,12 @@ switch(state){
           else
           {
               stateCleanup();
-              state = 3;
+              state = 4;
               break;
           }
         }
-        l_power = min(max(abs((left_output - y_int)/slope), min_power), max_power);
-        r_power = min(max(abs((right_output - y_int)/slope), min_power), max_power);
+        l_power = min(max(abs((left_output - y_int)/slope), min_power-2), max_power);
+        r_power = min(max(abs((right_output - y_int)/slope), min_power-2), max_power);
       }
     }
     break;
