@@ -94,7 +94,7 @@ ISR( TIMER3_COMPA_vect ) {
   if(state == 0 || state ==1){
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 70)
     {
-      confidence -= 0.004;
+      confidence -= 0.006;
     }
     else
     {
@@ -105,15 +105,18 @@ ISR( TIMER3_COMPA_vect ) {
 }
 
 void stateCleanup(void)
-{
+{               
+        l_power = 0.0;
+        r_power =0.0;
+        play_tone(6, 125);
+        delay(250);
+        play_tone(6, 0);
         r_direction = FORWARD;
         l_direction = FORWARD;
         right_wheel.reset();
         left_wheel.reset();
         rth_heading.reset();
         rth_position.reset();
-        l_power = 0.0;
-        r_power =0.0;
         direction_chosen  = false;
         current_rotation = 0.0;
         last_timestamp = millis(); 
@@ -127,7 +130,6 @@ void setup() {
   rth_heading.setMax(M_PI);
   rth_position.setMax(0.01);
 
-  
   pinMode(13, OUTPUT);
   Serial.begin( 9600 );
 
@@ -140,9 +142,7 @@ void setup() {
   flash_leds(500);
   
     // wait for a second
-  play_tone(6, 125);
-  delay(500);
-  analogWrite(6, 0);
+  stateCleanup();
 
   //setup timer for speed and odom timed calculations
   setupMotorPins();
@@ -203,15 +203,15 @@ switch(state){
       {
 //        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
 //        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
-        left_output= -heading_output*(0.4*max_des_speed);
-        right_output = heading_output*(0.4*max_des_speed);
+        left_output= -heading_output*(0.6*max_des_speed);
+        right_output = heading_output*(0.6*max_des_speed);
         count = 0;
-        if(heading_output >0.1)
+        if(heading_output >0.082)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
         }
-        else if(heading_output < -0.1)
+        else if(heading_output < -0.082)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
@@ -230,6 +230,7 @@ switch(state){
     
     if(confidence <=-1.0)
     {
+      // beep here      
       stateCleanup();
       state = 2;
       break;  
