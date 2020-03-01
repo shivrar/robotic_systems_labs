@@ -13,7 +13,7 @@ float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 35; // ~5.06
 int min_power = 18;
 float max_des_speed = 6.0;
-static float max_ang_vel = M_PI_2/2;
+static float max_ang_vel = M_PI_2/2.0;
 static float max_linear_vel = 0.01;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
@@ -46,7 +46,7 @@ unsigned long last_timestamp;
 int count = 0;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
-int state = -3;
+int state = 0;
 bool isClose = false;
 bool direction_chosen = false;
 float current_rotation = 0.0;
@@ -111,7 +111,6 @@ void stateCleanup(void)
         right_wheel.reset();
         left_wheel.reset();
         rth_heading.reset();
-//        rth_heading2.reset(); 
         rth_position.reset();
         l_power = 0.0;
         r_power =0.0;
@@ -127,7 +126,6 @@ void setup() {
   heading.setMax(1.0);
   rth_heading.setMax(M_PI);
   rth_position.setMax(0.01);
-//  rth_heading2.setMax(M_PI);
 
   
   pinMode(13, OUTPUT);
@@ -189,6 +187,7 @@ switch(state){
     }
   }
   break;
+  
   case 1:
   {
     m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
@@ -237,26 +236,7 @@ switch(state){
     }
     }
     break;
-    case -3:
-    {
-    /*Drive forward a bit so we can figure out if the kinematics are working alright*/
-      if(elapsed_time >=500 && count < 6)
-      {
-//        l_power = random(0,50);
-//        r_power = random(0,50);
-        l_power = 25;
-        r_power = 25;
-        count++;
-        last_timestamp = millis();
-      }
-      else if(elapsed_time >=500 && count >= 6)
-      {
-        stateCleanup();
-        state = 2;
-        break;
-      }
-      break;
-    }
+
     case 2:
     {
     /*Return to home - 
@@ -318,6 +298,7 @@ switch(state){
       }
     }
     break;
+    
     case 3:
     {
       if( elapsed_time >= 50)
@@ -393,6 +374,7 @@ switch(state){
       }
     }
     break;
+    
     case 4:
     {
         l_power = 0.0;
