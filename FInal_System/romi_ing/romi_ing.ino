@@ -242,10 +242,10 @@ switch(state){
     /*Drive forward a bit so we can figure out if the kinematics are working alright*/
       if(elapsed_time >=500 && count < 4)
       {
-        l_power = random(5,50);
-        r_power = random(5,50);
-//        l_power = 25;
-//        r_power = 25;
+//        l_power = random(0,50);
+//        r_power = random(0,50);
+        l_power = 30;
+        r_power = 20;
         count++;
         last_timestamp = millis();
       }
@@ -279,7 +279,7 @@ switch(state){
 //        {
 //          head_tol = M_PI/360.0;
 //        }
-        
+//        
         last_timestamp = millis();   
         count++;
         
@@ -314,7 +314,7 @@ switch(state){
           else
           {
               stateCleanup();
-              state = 4;
+              state = 3;
               break;
           }
         }
@@ -334,7 +334,7 @@ switch(state){
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-//        float ang_vel = max(min(rth_heading.update(0.0, home_heading)/(0.025), max_ang_vel), -max_ang_vel);
+        float ang_vel = max(min(rth_heading.update(0.0, home_heading)/(0.05), max_ang_vel), -max_ang_vel);
 //        float lin_vel = 0.05;
         if( !isClose  && abs_distance < 0.1)
         {
@@ -351,22 +351,22 @@ switch(state){
         {
           float right_wheel_speed, left_wheel_speed;
           
-          if(home_heading>0.872665)
+          if(ang_vel>0.872665)
           {
-            Romi.robotVelToWheelVels(max_linear_vel, max_ang_vel, left_wheel_speed, right_wheel_speed);
+            Romi.robotVelToWheelVels(max_linear_vel, -0.5*max_ang_vel, left_wheel_speed, right_wheel_speed);
           }
-          else if(home_heading<-0.872665)
+          else if(ang_vel<-0.872665)
           {
-            Romi.robotVelToWheelVels(max_linear_vel, -max_ang_vel, left_wheel_speed, right_wheel_speed);
+            Romi.robotVelToWheelVels(max_linear_vel,0.5*max_ang_vel, left_wheel_speed, right_wheel_speed);
           }
           else
           {
             Romi.robotVelToWheelVels(max_linear_vel, 0.0, left_wheel_speed, right_wheel_speed);
           }
-          right_output = right_wheel.update(right_wheel_speed, right_wheel_est);
-          left_output = left_wheel.update(left_wheel_speed, left_wheel_est);
-//          right_output = right_wheel_speed;
-//          left_output = left_wheel_speed;
+//          right_output = right_wheel.update(right_wheel_speed, right_wheel_est);
+//          left_output = left_wheel.update(left_wheel_speed, left_wheel_est);
+          right_output = right_wheel_speed;
+          left_output = left_wheel_speed;
           count = 0;
           if(abs_distance > 0.01)
           {
@@ -388,6 +388,12 @@ switch(state){
                 r_direction = FORWARD;
               }
           }
+          else if(Romi.getPose().x < 0) // we overshot so lets look back and the goal
+          {
+            stateCleanup();
+            state = 2;
+            break;
+          }
           else
           {
               stateCleanup();
@@ -395,13 +401,13 @@ switch(state){
               break;
           }
         }
-        l_power = min(max(abs((left_output - y_int)/slope), min_power), max_power);
-        r_power = min(max(abs((right_output - y_int)/slope), min_power), max_power);
-        Serial.print(home_heading);
+        l_power = min(max(abs((left_output - y_int)/slope), min_power-2), max_power);
+        r_power = min(max(abs((right_output - y_int)/slope), min_power-2), max_power);
+        Serial.print(Romi.getPose().x);
         Serial.print(",");
-        Serial.print(left_output);
-        Serial.print(",");
-        Serial.println(right_output);
+//        Serial.print(left_output);
+//        Serial.print(",");
+        Serial.println(Romi.getPose().y);
 
       }
     }
