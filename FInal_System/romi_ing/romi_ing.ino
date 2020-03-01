@@ -11,7 +11,7 @@
 
 float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
 int max_power = 35; // ~5.06
-int min_power = 20;
+int min_power = 18;
 float max_des_speed = 6.0;
 static float max_ang_vel = M_PI_2/2;
 static float max_linear_vel = 0.01;
@@ -242,10 +242,10 @@ switch(state){
     /*Drive forward a bit so we can figure out if the kinematics are working alright*/
       if(elapsed_time >=500 && count < 6)
       {
-        l_power = random(0,50);
-        r_power = random(0,50);
-//        l_power = 30;
-//        r_power = 30;
+//        l_power = random(0,50);
+//        r_power = random(0,50);
+        l_power = 25;
+        r_power = 25;
         count++;
         last_timestamp = millis();
       }
@@ -329,7 +329,7 @@ switch(state){
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
         float ang_vel = rth_heading.update(0.0, home_heading);
 //        float lin_vel = 0.05;
-        if( !isClose  && abs_distance < 0.1)
+        if( !isClose  && abs_distance < 0.2)
         {
           // Re-orient when we are close
           isClose = true;
