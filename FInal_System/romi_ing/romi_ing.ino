@@ -29,8 +29,8 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.1, 0.085,0.1);
 //PID left_wheel(1.0, 0.1,0);
 //PID right_wheel(1.0, 0.1,0);
-PID left_wheel(0.45, 0.0000,1.1);
-PID right_wheel(0.45, 0.0000,1.1);
+PID left_wheel(0.3, 0.0000,1.1);
+PID right_wheel(0.3, 0.0000,1.1);
 PID heading(0.3,0.0,0.15);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
@@ -97,7 +97,7 @@ ISR( TIMER3_COMPA_vect ) {
   if(state == 0 || state ==1){
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
-      confidence -= 0.006;
+      confidence -= 0.004;
     }
     else
     {
@@ -180,9 +180,9 @@ switch(state){
   {
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
-      l_power = min(l_power + 5, min_power);
+      l_power = min(l_power + 5, max_power);
       l_direction = FORWARD;
-      r_power = min(r_power + 5, min_power);
+      r_power = min(r_power + 5, max_power);
       r_direction = FORWARD;
     }
     else
@@ -229,10 +229,10 @@ switch(state){
       count++;
       if(count%2==0)
       {
-//        right_output = right_wheel.update(heading_output*(0.6*max_des_speed), right_wheel_est);
-//        left_output = left_wheel.update(-heading_output*(0.6*max_des_speed), left_wheel_est);
-        left_output= -heading_output*(0.5*max_des_speed);
-        right_output = heading_output*(0.5*max_des_speed);
+        right_output = right_wheel.update(heading_output*(0.6*max_des_speed), right_wheel_est);
+        left_output = left_wheel.update(-heading_output*(0.6*max_des_speed), left_wheel_est);
+//        left_output= -heading_output*(0.5*max_des_speed);
+//        right_output = heading_output*(0.5*max_des_speed);
         count = 0;
         if(heading_output >0.09)
         {
@@ -248,27 +248,29 @@ switch(state){
         {
           r_direction = FORWARD;
           l_direction = FORWARD;
-          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/1.5;
-          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/1.5;
+          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed;
+          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed;
         }
       }
     }
 //    l_power = max(abs((left_output - y_int)/slope), min_power+2);
 //    r_power = max(abs((right_output - y_int)/slope), min_power+2);
-    l_power = max(abs((left_output - y_int)/slope), min_power+5);
-    r_power = max(abs((right_output - y_int)/slope), min_power+5);
+    l_power = max(abs((left_output - y_int)/slope), min_power);
+    r_power = max(abs((right_output - y_int)/slope), min_power);
     
     if(confidence <=-1.0)
     {
+      l_power = 0;
+      r_power = 0;
       if(shouldBeep)
       {
         shouldBeep = false;
         beep_timestamp = millis();
-        analogWrite(6,125);
+        analogWrite(6,200);
         digitalWrite(13, HIGH);
         beep_time = 0;  
       }
-      if(beep_time >=500)
+      if(beep_time >=2000)
       {
         analogWrite(6,0);
         digitalWrite(13, LOW);    
