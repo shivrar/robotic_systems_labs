@@ -54,7 +54,7 @@ void LineSensor::calibrate()
 {
 // Take several readings and indications while calibrating
    int cal_arr = 0;
-   int samples = 30;
+   int samples = 10;
    for(int i = 0; i < samples; i++)
    {
      cal_arr+= this ->readRaw();
