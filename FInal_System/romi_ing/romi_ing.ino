@@ -234,12 +234,12 @@ switch(state){
         left_output= -heading_output*(0.5*max_des_speed);
         right_output = heading_output*(0.5*max_des_speed);
         count = 0;
-        if(heading_output >0.1)
+        if(heading_output >0.09)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
         }
-        else if(heading_output < -0.1)
+        else if(heading_output < -0.09)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
@@ -248,15 +248,15 @@ switch(state){
         {
           r_direction = FORWARD;
           l_direction = FORWARD;
-          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
-          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
+          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/1.5;
+          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/1.5;
         }
       }
     }
 //    l_power = max(abs((left_output - y_int)/slope), min_power+2);
 //    r_power = max(abs((right_output - y_int)/slope), min_power+2);
-    l_power = max(abs((left_output - y_int)/slope), min_power);
-    r_power = max(abs((right_output - y_int)/slope), min_power);
+    l_power = max(abs((left_output - y_int)/slope), min_power+5);
+    r_power = max(abs((right_output - y_int)/slope), min_power+5);
     
     if(confidence <=-1.0)
     {
