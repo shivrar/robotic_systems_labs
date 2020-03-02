@@ -29,9 +29,9 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.1, 0.085,0.1);
 //PID left_wheel(1.0, 0.1,0);
 //PID right_wheel(1.0, 0.1,0);
-PID left_wheel(0.6, 0.0000,1.1);
-PID right_wheel(0.6, 0.0000,1.1);
-PID heading(0.3,0.0,0.09);
+PID left_wheel(0.45, 0.0000,1.1);
+PID right_wheel(0.45, 0.0000,1.1);
+PID heading(0.3,0.0,0.15);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -44,6 +44,7 @@ volatile bool r_direction;
 volatile float m;
 unsigned long last_timestamp;
 int count = 0;
+int number_beeps = 1;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
 int state = 0;
@@ -92,7 +93,7 @@ ISR( TIMER3_COMPA_vect ) {
   prev_theta_e0 = theta_e0;
   prev_theta_e1 = theta_e1;
   if(state == 0 || state ==1){
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 70)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
       confidence -= 0.006;
     }
@@ -108,9 +109,9 @@ void stateCleanup(void)
 {               
         l_power = 0.0;
         r_power =0.0;
-        play_tone(6, 125);
-        delay(250);
-        play_tone(6, 0);
+//        play_tone(6, 125);
+//        delay(250);
+//        play_tone(6, 0);
         r_direction = FORWARD;
         l_direction = FORWARD;
         right_wheel.reset();
@@ -142,6 +143,9 @@ void setup() {
   flash_leds(500);
   
     // wait for a second
+  analogWrite(6,125);;
+  delay(250);
+  analogWrite(6,0);;
   stateCleanup();
 
   //setup timer for speed and odom timed calculations
@@ -201,17 +205,17 @@ switch(state){
       count++;
       if(count%2==0)
       {
-//        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
-//        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
-        left_output= -heading_output*(0.6*max_des_speed);
-        right_output = heading_output*(0.6*max_des_speed);
+//        right_output = right_wheel.update(heading_output*(0.6*max_des_speed), right_wheel_est);
+//        left_output = left_wheel.update(-heading_output*(0.6*max_des_speed), left_wheel_est);
+        left_output= -heading_output*(0.5*max_des_speed);
+        right_output = heading_output*(0.5*max_des_speed);
         count = 0;
-        if(heading_output >0.082)
+        if(heading_output >0.1)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
         }
-        else if(heading_output < -0.082)
+        else if(heading_output < -0.1)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
@@ -225,12 +229,14 @@ switch(state){
         }
       }
     }
-    l_power = max(abs((left_output - y_int)/slope), min_power+2);
-    r_power = max(abs((right_output - y_int)/slope), min_power+2);
+//    l_power = max(abs((left_output - y_int)/slope), min_power+2);
+//    r_power = max(abs((right_output - y_int)/slope), min_power+2);
+    l_power = max(abs((left_output - y_int)/slope), min_power);
+    r_power = max(abs((right_output - y_int)/slope), min_power);
     
     if(confidence <=-1.0)
     {
-      // beep here      
+      // beep here
       stateCleanup();
       state = 2;
       break;  
@@ -294,8 +300,8 @@ switch(state){
               break;
           }
         }
-        l_power = min(max(abs((left_output - y_int)/slope), min_power-2), max_power);
-        r_power = min(max(abs((right_output - y_int)/slope), min_power-2), max_power);
+        l_power = min(max(abs((left_output - y_int)/slope), min_power-3), max_power);
+        r_power = min(max(abs((right_output - y_int)/slope), min_power-3), max_power);
       }
     }
     break;
