@@ -180,9 +180,9 @@ switch(state){
   {
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
-      l_power = min(l_power + 5, max_power);
+      l_power = min(l_power + 5, max_power-5);
       l_direction = FORWARD;
-      r_power = min(r_power + 5, max_power);
+      r_power = min(r_power + 5, max_power-5);
       r_direction = FORWARD;
     }
     else
@@ -229,8 +229,8 @@ switch(state){
       count++;
       if(count%2==0)
       {
-        right_output = right_wheel.update(heading_output*(0.6*max_des_speed), right_wheel_est);
-        left_output = left_wheel.update(-heading_output*(0.6*max_des_speed), left_wheel_est);
+        right_output = right_wheel.update(heading_output*(0.4*max_des_speed), right_wheel_est);
+        left_output = left_wheel.update(-heading_output*(0.4*max_des_speed), left_wheel_est);
 //        left_output= -heading_output*(0.5*max_des_speed);
 //        right_output = heading_output*(0.5*max_des_speed);
         count = 0;
