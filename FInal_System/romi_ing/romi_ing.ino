@@ -43,12 +43,14 @@ volatile bool l_direction;
 volatile bool r_direction;
 volatile float m;
 unsigned long last_timestamp;
+unsigned long beep_timestamp;
+
 int count = 0;
-int number_beeps = 1;
 //intialise the state
 // NB: -1, -2, -3 are a debuging state So use that accordingly
 int state = 0;
 bool isClose = false;
+bool shouldBeep = true;
 bool direction_chosen = false;
 float current_rotation = 0.0;
 
@@ -121,6 +123,8 @@ void stateCleanup(void)
         direction_chosen  = false;
         current_rotation = 0.0;
         last_timestamp = millis(); 
+        beep_timestamp = millis();
+        shouldBeep = true;
 }
 
 void setup() {
@@ -155,6 +159,7 @@ void setup() {
   setupTimer3(hz);
 
   last_timestamp = millis();
+  beep_timestamp = millis();
   
 }
 
@@ -164,6 +169,8 @@ void loop()
 unsigned long time_now = millis();     
 
 unsigned long elapsed_time = time_now - last_timestamp;
+
+unsigned long beep_time = time_now - beep_timestamp;
   
 //switch case logic for romi -> each state should only adjust power and direction of motors for keeping traceability
 switch(state){
@@ -185,9 +192,26 @@ switch(state){
     }
     if(confidence >=0.5)
     {
-      stateCleanup();
-      state = 1;
-      break;
+//      stateCleanup();
+//      state = 1;
+//      break;
+      // beep here
+      if(shouldBeep)
+      {
+        shouldBeep = false;
+        beep_timestamp = millis();
+        analogWrite(6,125);
+        digitalWrite(13, HIGH);
+        beep_time = 0;  
+      }
+      if(beep_time >=500)
+      {
+        analogWrite(6,0);
+        digitalWrite(13, LOW);    
+        stateCleanup();
+        state = 1;
+        break;  
+      }  
     }
   }
   break;
@@ -236,10 +260,22 @@ switch(state){
     
     if(confidence <=-1.0)
     {
-      // beep here
-      stateCleanup();
-      state = 2;
-      break;  
+      if(shouldBeep)
+      {
+        shouldBeep = false;
+        beep_timestamp = millis();
+        analogWrite(6,125);
+        digitalWrite(13, HIGH);
+        beep_time = 0;  
+      }
+      if(beep_time >=500)
+      {
+        analogWrite(6,0);
+        digitalWrite(13, LOW);    
+        stateCleanup();
+        state = 2;
+        break;  
+      } 
     }
     }
     break;
