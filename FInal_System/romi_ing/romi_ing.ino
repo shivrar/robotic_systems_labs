@@ -9,10 +9,10 @@
 // TODO: Look at the idea of confidence for line following for the robot. 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
-float max_speed = 25.84; //Max reachable speed of the wheels -> output is 255
+float max_speed = 7.8; //Max reachable speed of the wheels -> output is 255
 int max_power = 35; // ~5.06
 int min_power = 20;
-float max_des_speed = 6.0;
+float max_des_speed = 5.4;
 static float max_ang_vel = M_PI_2/2.0;
 static float max_linear_vel = 0.02;
 
@@ -29,9 +29,9 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.1, 0.085,0.1);
 //PID left_wheel(1.0, 0.1,0);
 //PID right_wheel(1.0, 0.1,0);
-PID left_wheel(0.3, 0.0000,1.1);
-PID right_wheel(0.3, 0.0000,1.1);
-PID heading(0.4,0.0,0.15);
+PID left_wheel(1.0, 0.0,0.0);
+PID right_wheel(1.0, 0.0,0.0);
+PID heading(1.4,0.0,0.01);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -132,6 +132,7 @@ void setup() {
   left_wheel.setMax(max_des_speed);
   right_wheel.setMax(max_des_speed);
   heading.setMax(1.0);
+//  heading.setDebug(true);
   rth_heading.setMax(M_PI);
   rth_position.setMax(0.01);
 
@@ -190,12 +191,8 @@ switch(state){
       l_power = 0;
       r_power = 0;
     }
-    if(confidence >=0.5)
+    if(confidence >=0.2)
     {
-//      stateCleanup();
-//      state = 1;
-//      break;
-      // beep here
       if(shouldBeep)
       {
         shouldBeep = false;
@@ -219,30 +216,32 @@ switch(state){
   case 1:
   {
     m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
-    float heading_output = 0.0;
-    float right_output = 0.0;
-    float left_output = 0.0;
-    if( elapsed_time >= 50) 
+    if( elapsed_time >= 10) 
     {
+      float heading_output = 0.0;
+      float right_output = 0.0;
+      float left_output = 0.0;
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
       count++;
       if(count%2==0)
       {
-        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
-        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
-//        left_output= -heading_output*(0.5*max_des_speed);
-//        right_output = heading_output*(0.5*max_des_speed);
+//        right_output = right_wheel.update(heading_output*(max_des_speed), right_wheel_est);
+//        left_output = left_wheel.update(-heading_output*(max_des_speed), left_wheel_est);
+        left_output= -heading_output*(max_des_speed);
+        right_output = heading_output*(max_des_speed);
         count = 0;
-        if(heading_output >0.09)
+        if(heading_output >0.35)
         {
           r_direction = FORWARD;
           l_direction = REVERSE;
+          left_output = 0.5*left_output;
         }
-        else if(heading_output < -0.09)
+        else if(heading_output < -0.35)
         {
           r_direction = REVERSE;
           l_direction = FORWARD;
+          right_output = 0.5*right_output;
         }
         else
         {
@@ -251,13 +250,26 @@ switch(state){
           right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
           left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
         }
+        if(abs((left_output - y_int)/slope) > max_power)
+        {
+          l_power = (byte) max_power;
+        }
+        else 
+        {
+          l_power = (byte)abs((left_output - y_int)/slope);
+        }
+
+        if(abs((right_output - y_int)/slope)> max_power)
+        {
+          r_power = (byte) max_power;
+        }
+        else
+        {
+          r_power = (byte)abs((right_output - y_int)/slope);
+        }
       }
-    }
-//    l_power = max(abs((left_output - y_int)/slope), min_power+2);
-//    r_power = max(abs((right_output - y_int)/slope), min_power+2);
-    l_power = max(abs((left_output - y_int)/slope), min_power);
-    r_power = max(abs((right_output - y_int)/slope), min_power);
-    
+
+    }    
     if(confidence <=-1.0)
     {
       l_power = 0;
@@ -275,7 +287,7 @@ switch(state){
         analogWrite(6,0);
         digitalWrite(13, LOW);    
         stateCleanup();
-        state = 2;
+        state = 4;
         break;  
       } 
     }

@@ -103,8 +103,8 @@ void PID::printComponents() {
   Serial.print(",");
   Serial.print(Ki_output);
   Serial.print(",");
-  Serial.print(output_signal);
-  Serial.print("\n");
+  Serial.println(output_signal);
+//  Serial.println("\n");
 }
 
 /*
@@ -144,7 +144,7 @@ float PID::update(float demand, float measurement) {
   //This represents the error derivative
   // Calculate the change in your error between update()
   float error_delta;
-  error_delta = (error-last_error)/time_delta;
+  error_delta = 1000.0*(error-last_error)/(float)time_delta;
 
   // This represents the error integral.
   // Integrate error over time.
@@ -185,12 +185,12 @@ float PID::update(float demand, float measurement) {
   
   //Print debugging information if required
   if (debug) {
-    Serial.print(error);
-    Serial.print(",");
-    Serial.print(error_delta);
-    Serial.print(",");
-    Serial.print(integral_error);
-    Serial.println(",");
+//    Serial.print(error);-
+//    Serial.print(",");
+//    Serial.print(error_delta);
+//    Serial.print(",");
+//    Serial.print(integral_error);
+//    Serial.println(",");
     
     printComponents();
   }
