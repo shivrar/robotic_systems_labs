@@ -10,11 +10,11 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
 //float max_speed = 4.2; //Max reachable speed of the wheels -> output is 255
-int max_power = 35; // ~5.06
+int max_power = 30; // ~5.06
 int min_power = 20;
 float max_des_speed = 1.5*M_PI;
-static float max_ang_vel = 1.25*M_PI;
-static float max_linear_vel = 0.1;
+static float max_ang_vel = 1.5*M_PI;
+static float max_linear_vel = 0.08;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
 
@@ -24,16 +24,11 @@ speed = 0.1056*(PWM) + 0.287 is an alright linear approximation to convert pwm s
 
 float slope = 0.1056, y_int = 0.287;
 
-//
-//PID left_wheel(1.1, 0.085,0.1);
-//PID right_wheel(1.1, 0.085,0.1);
-//PID left_wheel(1.0, 0.1,0);
-//PID right_wheel(1.0, 0.1,0);
-PID left_wheel(1.0, 0.001,0.001);
-PID right_wheel(1.0, 0.001,0.001);
+PID left_wheel( 1.3,  0.015, 0.00001);
+PID right_wheel(1.3, 0.015,0.00001);
 //PID heading(1.4,0.0,0.01);
 //PID heading(1.0,0.0,0.035);
-PID heading(0.8, 0.0,0.00125);
+PID heading(0.61, 0.001,0.0001);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -113,9 +108,6 @@ void stateCleanup(void)
 {               
         l_power = 0.0;
         r_power =0.0;
-//        play_tone(6, 125);
-//        delay(250);
-//        play_tone(6, 0);
         r_direction = FORWARD;
         l_direction = FORWARD;
         right_wheel.reset();
@@ -177,19 +169,30 @@ unsigned long beep_time = time_now - beep_timestamp;
 //switch case logic for romi -> each state should only adjust power and direction of motors for keeping traceability
 switch(state){
 //Now that we have the sensor lets try to find the line
-
+//
 //  case -4:
 //  {
-//      if(elapsed_time >=50)
+//      if(elapsed_time >=2000)
 //      {
-//        l_power = 25;
+//        count++;
+//        l_power = 0.0;
 //        l_direction = REVERSE;
-//        r_power = 25;
-//        r_direction = FORWARD;
-//        Serial.print(Romi.getRobotLinearX());
-//        Serial.print(",");
-//        Serial.println(Romi.getRobotAngZ());
+////        r_direction = FORWARD;
 //        last_timestamp = millis();    
+//      }
+//      if(beep_time >=100)
+//      {
+//        float r_speed = (count%2 ==0) ? M_PI : -M_PI;
+//        float right_output = right_wheel.update(r_speed, right_wheel_est);
+//
+//        r_direction = (right_output >= 0)? FORWARD: REVERSE;
+//        
+//        r_power = (byte)abs((right_output - y_int)/slope); //~2.20
+//        Serial.print(right_wheel_est);
+//        Serial.print(",");
+//        Serial.print(r_speed);
+//        Serial.print(",");
+//        Serial.println(right_wheel_vel);
 //      }
 //  }
 //  break;
@@ -238,7 +241,7 @@ switch(state){
       float right_output = 0.0;
       float left_output = 0.0;
       float forward_vel = 0.0;
-      float right_wheel_vel, left_wheel_vel;
+      float right_vel, left_vel;
       float ang_vel = 0.0;
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
@@ -248,14 +251,14 @@ switch(state){
 
           forward_vel = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_linear_vel;
           ang_vel = heading_output*max_ang_vel;
-          Romi.robotVelToWheelVels(forward_vel, ang_vel, left_wheel_vel, right_wheel_vel);
+          Romi.robotVelToWheelVels(forward_vel, ang_vel, left_vel, right_vel);
 //        right_output = right_wheel.update(right_wheel_vel, right_wheel_est);
 //        left_output = left_wheel.update(left_wheel_vel, left_wheel_est);
 //
 //        left_output= -heading_output*(max_des_speed);
 //        right_output = heading_output*(max_des_speed);
-        left_output = left_wheel_vel;
-        right_output = right_wheel_vel;
+        left_output = left_vel;
+        right_output = right_vel;
         count = 0;
 
         if(left_output < 0)
@@ -296,7 +299,7 @@ switch(state){
       }
 
     }    
-    if(confidence <=-0.7)
+    if(confidence <=-1.0)
     {
       l_power = 0;
       r_power = 0;
