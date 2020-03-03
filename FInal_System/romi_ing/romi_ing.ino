@@ -31,7 +31,7 @@ float slope = 0.1056, y_int = 0.287;
 //PID right_wheel(1.0, 0.1,0);
 PID left_wheel(0.3, 0.0000,1.1);
 PID right_wheel(0.3, 0.0000,1.1);
-PID heading(0.3,0.0,0.15);
+PID heading(0.4,0.0,0.15);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -229,8 +229,8 @@ switch(state){
       count++;
       if(count%2==0)
       {
-        right_output = right_wheel.update(heading_output*(0.4*max_des_speed), right_wheel_est);
-        left_output = left_wheel.update(-heading_output*(0.4*max_des_speed), left_wheel_est);
+        right_output = right_wheel.update(heading_output*(0.5*max_des_speed), right_wheel_est);
+        left_output = left_wheel.update(-heading_output*(0.5*max_des_speed), left_wheel_est);
 //        left_output= -heading_output*(0.5*max_des_speed);
 //        right_output = heading_output*(0.5*max_des_speed);
         count = 0;
@@ -248,8 +248,8 @@ switch(state){
         {
           r_direction = FORWARD;
           l_direction = FORWARD;
-          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed;
-          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed;
+          right_output = map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
+          left_output= map(confidence, -1.0, 1.0, 0.0, 1.0)*max_des_speed/2.0;
         }
       }
     }
