@@ -24,11 +24,11 @@ speed = 0.1056*(PWM) + 0.287 is an alright linear approximation to convert pwm s
 
 float slope = 0.1056, y_int = 0.287;
 
-PID left_wheel( 1.3,  0.015, 0.00001);
-PID right_wheel(1.3, 0.015,0.00001);
+PID left_wheel( 1.0,  0.02, 0.0000);
+PID right_wheel(1.0,  0.02, 0.0000);
 //PID heading(1.4,0.0,0.01);
 //PID heading(1.0,0.0,0.035);
-PID heading(0.61, 0.001,0.0001);
+PID heading(0.45, 0.002,0.00001);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -38,7 +38,6 @@ volatile byte l_power;
 volatile byte r_power;
 volatile bool l_direction;
 volatile bool r_direction;
-volatile float m;
 unsigned long last_timestamp;
 unsigned long beep_timestamp;
 
@@ -91,7 +90,7 @@ ISR( TIMER3_COMPA_vect ) {
   
   prev_theta_e0 = theta_e0;
   prev_theta_e1 = theta_e1;
-  if(state == 0 || state ==1){
+  if(state == 0 || state ==1 || state == 2){
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
       confidence -= 0.004;
@@ -168,42 +167,36 @@ unsigned long beep_time = time_now - beep_timestamp;
   
 //switch case logic for romi -> each state should only adjust power and direction of motors for keeping traceability
 switch(state){
-//Now that we have the sensor lets try to find the line
-//
-//  case -4:
-//  {
-//      if(elapsed_time >=2000)
-//      {
-//        count++;
-//        l_power = 0.0;
-//        l_direction = REVERSE;
-////        r_direction = FORWARD;
-//        last_timestamp = millis();    
-//      }
-//      if(beep_time >=100)
-//      {
-//        float r_speed = (count%2 ==0) ? M_PI : -M_PI;
-//        float right_output = right_wheel.update(r_speed, right_wheel_est);
-//
-//        r_direction = (right_output >= 0)? FORWARD: REVERSE;
-//        
-//        r_power = (byte)abs((right_output - y_int)/slope); //~2.20
-//        Serial.print(right_wheel_est);
-//        Serial.print(",");
-//        Serial.print(r_speed);
-//        Serial.print(",");
-//        Serial.println(right_wheel_vel);
-//      }
-//  }
-//  break;
   case 0:
   {
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
-      l_power = min(l_power + 5, max_power-5);
-      l_direction = FORWARD;
-      r_power = min(r_power + 5, max_power-5);
-      r_direction = FORWARD;
+      if(elapsed_time >= 50)
+      {
+        last_timestamp = millis();
+        float right_output, left_output;
+        right_output = right_wheel.update(max_des_speed, right_wheel_est);
+        left_output = left_wheel.update(max_des_speed, left_wheel_est);
+        l_direction = FORWARD;
+        r_direction = FORWARD;
+        if(abs((left_output - y_int)/slope) > max_power)
+        {
+          l_power = (byte) max_power;
+        }
+        else 
+        {
+          l_power = (byte)abs((left_output - y_int)/slope);
+        }
+
+        if(abs((right_output - y_int)/slope)> max_power)
+        {
+          r_power = (byte) max_power;
+        }
+        else
+        {
+          r_power = (byte)abs((right_output - y_int)/slope);
+        }
+      }
     }
     else
     {
@@ -231,10 +224,9 @@ switch(state){
     }
   }
   break;
-  
   case 1:
   {
-    m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
+    float m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
     if( elapsed_time >= 50) 
     {
       float heading_output = 0.0;
@@ -316,13 +308,12 @@ switch(state){
         analogWrite(6,0);
         digitalWrite(13, LOW);    
         stateCleanup();
-        state = 4;
+        state = 2;
         break;  
       } 
     }
     }
     break;
-
     case 2:
     {
     /*Return to home - 
@@ -384,7 +375,7 @@ switch(state){
       }
     }
     break;
-    
+    /*TODO: Re=implement this entire logic once Iv'e tested the rotation state*/
     case 3:
     {
       if( elapsed_time >= 50)
@@ -460,7 +451,6 @@ switch(state){
       }
     }
     break;
-    
     case 4:
     {
         l_power = 0.0;
@@ -657,5 +647,104 @@ switch(state){
 //      break;  
 //    } 
 //  }
+//  }
+//  break;
+//
+//  case 1:
+//  {
+//  /*rotate a bit to align*/
+//    float m = weightedPower(l_sensor, c_sensor, r_sensor, min_power, max_power);
+//    if( elapsed_time >= 25) 
+//    {
+//      float heading_output = 0.0;
+//      float right_output = 0.0;
+//      float left_output = 0.0;
+//      last_timestamp = millis();    
+//      heading_output = heading.update(0.0, m);
+//      count++;
+//      right_output = 0.5*max_des_speed;
+//      left_output = 0.5*max_des_speed;
+//      if(count%2==0)
+//      {
+//        count = 0;
+//        if(m > 0.0)
+//        {
+//          r_direction = FORWARD;
+//          l_direction = REVERSE;
+//        }
+//        else if(m < 0.0)
+//        {
+//          r_direction = REVERSE;
+//          l_direction = FORWARD;
+//        }
+//        if(abs((left_output - y_int)/slope) > max_power)
+//        {
+//          l_power = (byte) max_power;
+//        }
+//        else 
+//        {
+//          l_power = (byte)abs((left_output - y_int)/slope);
+//        }
+//  
+//        if(abs((right_output - y_int)/slope)> max_power)
+//        {
+//          r_power = (byte) max_power;
+//        }
+//        else
+//        {
+//          r_power = (byte)abs((right_output - y_int)/slope);
+//        }
+//      }
+//    }    
+//    if(m >= 0.05 || m <= -0.05)
+//    {
+//      l_power = 0;
+//      r_power = 0;
+//      if(shouldBeep)
+//      {
+//        shouldBeep = false;
+//        beep_timestamp = millis();
+////        analogWrite(6,100);
+//        digitalWrite(13, HIGH);
+//        beep_time = 0;  
+//      }
+//      if(beep_time >=1000)
+//      {
+////        analogWrite(6,0);
+//        digitalWrite(13, LOW);    
+//        stateCleanup();
+//        state = 5;
+//        break;  
+//      } 
+//    }
+//  }
+//  break;
+
+//Now that we have the sensor lets try to find the line
+//
+//  case -4:
+//  {
+//      if(elapsed_time >=2000)
+//      {
+//        count++;
+//        l_power = 0.0;
+//        l_direction = REVERSE;
+////        r_direction = FORWARD;
+//        last_timestamp = millis();    
+//      }
+//      if(beep_time >=100)
+//      {
+//        float r_speed = (count%2 ==0) ? M_PI : -M_PI;
+//        float right_output = right_wheel.update(r_speed, right_wheel_est);
+//
+//        r_direction = (right_output >= 0)? FORWARD: REVERSE;
+//        
+//        r_power = (byte)abs((right_output - y_int)/slope); //~2.20
+//        Serial.print(right_wheel_est);
+//        Serial.print(",");
+//        Serial.print(r_speed);
+//        Serial.print(",");
+//        Serial.println(right_wheel_vel);
+//      }
 //  }
 //  break;
