@@ -38,6 +38,10 @@ void flash_leds ()
   delay(1000); 
 }
 
+float float_map(float x, float in_min, float in_max, float out_min, float out_max) {
+  return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
 //Function overload for variable time
 void flash_leds (int delay_ms)
 {
