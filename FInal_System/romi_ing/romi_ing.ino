@@ -10,11 +10,11 @@
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
 //float max_speed = 4.2; //Max reachable speed of the wheels -> output is 255
-int max_power = 30; // ~5.06
+int max_power = 40; // ~5.06
 int min_power = 20;
-float max_des_speed = 1.5*M_PI;
-static float max_ang_vel = 2.0*M_PI;
-static float max_linear_vel = 0.12;
+float max_des_speed = 2.0*M_PI;
+static float max_ang_vel = 3.0*M_PI;
+static float max_linear_vel = 0.1;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
 
@@ -29,7 +29,7 @@ PID right_wheel(1.0,  0.02, 0.0000);
 //PID heading(1.4,0.0,0.01);
 //PID heading(1.0,0.0,0.035);
 //PID heading(0.42, 0.005,0.00006);
-PID heading(0.51, 0.004,0.0008);
+PID heading(0.58, 0.012,0.0052);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -244,7 +244,7 @@ switch(state){
       if(count%2==0)
       {
 
-          forward_vel = float_map(confidence, -1.0, 1.0, 0.2, 1.0)*max_linear_vel;
+          forward_vel = float_map(confidence, -1.0, 1.0, 0.1, 0.8)*max_linear_vel;
           ang_vel = heading_output*max_ang_vel;
           Romi.robotVelToWheelVels(forward_vel, ang_vel, left_vel, right_vel);
 //        right_output = right_wheel.update(right_wheel_vel, right_wheel_est);
@@ -328,13 +328,13 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.1, 0.4)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.1, 0.4)*max_ang_vel ;
+        float ang_vel = (home_heading > 0)? 0.12*max_ang_vel : -0.12*max_ang_vel ;
 //        if(!direction_chosen)
 //        {
 //          direction_chosen = true;
 //          current_rotation = (home_heading >=0.0) ? 1.0:-1.0;
 //        }
-        float head_tol = M_PI/90.0;
+        float head_tol = M_PI/30.0;
         last_timestamp = millis();   
         count++;
         
@@ -407,8 +407,8 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 1.0)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 1.0)*max_ang_vel ;
-        float head_tol = M_PI/120.0;
+        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 0.75)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 0.75)*max_ang_vel ;
+        float head_tol = M_PI/100.0;
 //        if( !isClose  && abs_distance < 0.2)
 //        {
 //          // Re-orient when we are close
@@ -425,16 +425,16 @@ switch(state){
           // BAng Bang RTH could do some cleaner logic but a working thing right right now
           if(home_heading > head_tol || home_heading < -head_tol)
           {
-            Romi.robotVelToWheelVels(1.5*max_linear_vel, ang_vel, left_vel, right_vel);
+            Romi.robotVelToWheelVels(max_linear_vel, ang_vel, left_vel, right_vel);
           }
           else
           {
             Romi.robotVelToWheelVels(max_linear_vel, 0.0, left_vel, right_vel);
           }
-          right_output = right_wheel.update(right_vel, right_wheel_est);
-          left_output = left_wheel.update(left_vel, left_wheel_est);
-//          right_output = right_vel;
-//          left_output = left_vel;
+//          right_output = right_wheel.update(right_vel, right_wheel_est);
+//          left_output = left_wheel.update(left_vel, left_wheel_est);
+          right_output = right_vel;
+          left_output = left_vel;
           count = 0;
           if(abs_distance > 0.01 && Romi.getPose().x >= 0)
           {
