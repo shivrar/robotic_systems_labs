@@ -328,7 +328,7 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.2, 0.4)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.2, 0.4)*max_ang_vel ;
+        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.1, 0.4)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.1, 0.4)*max_ang_vel ;
 //        if(!direction_chosen)
 //        {
 //          direction_chosen = true;
@@ -408,7 +408,7 @@ switch(state){
         float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
         float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 1.0)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 1.0)*max_ang_vel ;
-        float head_tol = M_PI/100.0;
+        float head_tol = M_PI/120.0;
 //        if( !isClose  && abs_distance < 0.2)
 //        {
 //          // Re-orient when we are close
