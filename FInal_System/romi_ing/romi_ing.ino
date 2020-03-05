@@ -245,7 +245,7 @@ switch(state){
       if(count%2==0)
       {
 
-          forward_vel = float_map(confidence, -1.0, 1.0, 0.15, 0.7)*max_linear_vel;
+          forward_vel = float_map(confidence, -1.0, 1.0, 0.0, 1.0)*max_linear_vel;
           ang_vel = heading_output*max_ang_vel;
           Romi.robotVelToWheelVels(forward_vel, ang_vel, left_vel, right_vel);
 //        right_output = right_wheel.update(right_wheel_vel, right_wheel_est);
@@ -328,11 +328,11 @@ switch(state){
 //      /*BUG HERE!!!!!!! LOOK AT THIS PROPERLY!!!!!!!!*/
         float right_output = 0.0;
         float left_output = 0.0;
-        float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
-        float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
+        float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
+        float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
         float ang_vel = (home_heading > 0)? 0.2*max_ang_vel : -0.2*max_ang_vel ;
 //        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.3, 0.6)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.3, 0.6)*max_ang_vel ;
-        float head_tol = M_PI/30.0;
+        float head_tol = M_PI/90.0;
 //        if(isClose)
 //        {
 //          ang_vel = (home_heading > 0)? 0.2*max_ang_vel : -0.2*max_ang_vel ;
@@ -386,15 +386,12 @@ switch(state){
               {
                 r_power = (byte)abs((right_output - y_int)/slope);
               }
-              Serial.print(home_heading,6);
-              Serial.print(",");
-              Serial.println(Romi.getPose().theta,6);
           }
           else
           {
               distance_from_home = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
               stateCleanup();
-              state = 4;
+              state = 3;
               break;
           }
         }
@@ -410,9 +407,9 @@ switch(state){
         float abs_distance = sqrt(square(Romi.getPose().x) + square(Romi.getPose().y));
         float right_output = 0.0;
         float left_output = 0.0;
-        float alpha = acos((Romi.getPose().x*cos(Romi.getPose().theta) + Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
-        float home_heading = ((Romi.getPose().theta>=0 && Romi.getPose().theta<=M_PI)  || (Romi.getPose().theta<=-M_PI && Romi.getPose().theta<=0) ) ? M_PI - alpha : alpha - M_PI;
-        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 0.5)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 0.5)*max_ang_vel ;
+        float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
+        float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
+        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 0.7)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 0.7)*max_ang_vel ;
 //        float head_tol = M_PI/90.0;
         float lin_vel = float_map(abs_distance, 0.0, distance_from_home, 0.5*max_linear_vel,max_linear_vel);
         last_timestamp = millis();    
@@ -420,21 +417,11 @@ switch(state){
         if(count%2==0)
         {
           float right_vel, left_vel;
-          // BAng Bang RTH could do some cleaner logic but a working thing right right now
-//          if(home_heading > head_tol || home_heading < -head_tol)
-//          {
-            Romi.robotVelToWheelVels(lin_vel, ang_vel, left_vel, right_vel);
-//          }
-//          else
-//          {
-//            Romi.robotVelToWheelVels(lin_vel, 0.0, left_vel, right_vel);
-//          }
-//          right_output = right_wheel.update(right_vel, right_wheel_est);
-//          left_output = left_wheel.update(left_vel, left_wheel_est);
+          Romi.robotVelToWheelVels(lin_vel, ang_vel, left_vel, right_vel);
           right_output = right_vel;
           left_output = left_vel;
           count = 0;
-          if(abs_distance > 0.03 && Romi.getPose().x >= 0)
+          if(abs_distance > 0.01 && Romi.getPose().x >= 0)
           {
               if(left_output < 0)
               {
@@ -485,9 +472,9 @@ switch(state){
     {
         l_power = 0.0;
         r_power = 0.0;
-        Serial.print(Romi.getPose().x,6);
+        Serial.print(Romi.getPose().x,3);
         Serial.print(",");
-        Serial.print(Romi.getPose().y, 6);
+        Serial.print(Romi.getPose().y, 3);
         Serial.print(",");
         Serial.println(Romi.getPose().theta,6);
         // Finished
