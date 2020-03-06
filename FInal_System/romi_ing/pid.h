@@ -185,7 +185,7 @@ float PID::update(float demand, float measurement) {
   
   //Print debugging information if required
   if (debug) {
-    Serial.print(error);-
+    Serial.print(error);
     Serial.print(",");
     Serial.print(error_delta);
     Serial.print(",");
