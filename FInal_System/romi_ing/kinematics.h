@@ -82,7 +82,7 @@ namespace Kinematics2D{
     ang_z_ = (right_wheel_vel - left_wheel_vel)* wheel_radius_/wheel_separation_;
 
     //Lets normalise the angle
-//    pose_encoder_.theta = fmod(pose_encoder_.theta ,2.0*M_PI);
+    pose_encoder_.theta = fmod(pose_encoder_.theta ,2.0*M_PI);
 
     last_update_time_ = current_time;
     return;
