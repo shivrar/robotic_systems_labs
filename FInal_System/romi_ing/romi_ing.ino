@@ -99,7 +99,7 @@ ISR( TIMER3_COMPA_vect ) {
   if(state == 0 || state ==1){
     if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
-      confidence -= 0.003;
+      confidence -= 0.004;
     }
     else
     {
@@ -200,7 +200,7 @@ unsigned long beep_time = time_now - beep_timestamp;
 switch(state){
   case 0:
   {
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 110)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 120)
     {
       if(elapsed_time >= 50)
       {
@@ -274,7 +274,7 @@ switch(state){
       if(count%2==0)
       {
 
-          forward_vel = float_map(confidence, -1.0, 1.0, 0.0, 1.0)*max_linear_vel;
+          forward_vel = float_map(confidence, -1.0, 1.0, 0.0, 0.9)*max_linear_vel;
           ang_vel = heading_output*1.0*max_ang_vel;
           Romi.robotVelToWheelVels(forward_vel, ang_vel, left_vel, right_vel);
 //        right_output = right_wheel.update(right_wheel_vel, right_wheel_est);
