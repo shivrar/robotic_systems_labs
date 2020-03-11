@@ -6,7 +6,7 @@
 #include "kinematics.h"
 
 //~~~~~~~~~~~~~~~~~~TODO's~~~~~~~~~~~~~~~~~~~~~//
-// TODO: Look at the idea of confidence for line following for the robot. 
+// TODO: Improve Kinematics calculations -> for sharp angle turns the kinematics and look home is really off -> bad theta being calculated? 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
 
 //float max_speed = 4.2; //Max reachable speed of the wheels -> output is 255
@@ -358,7 +358,7 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
-        float ang_vel = (home_heading > 0)? 0.2*max_ang_vel : -0.2*max_ang_vel ;
+        float ang_vel = (home_heading > 0)? 0.1*max_ang_vel : -0.1*max_ang_vel ;
         float head_tol = M_PI/180.0;
 //        if(isClose)
 //        {
