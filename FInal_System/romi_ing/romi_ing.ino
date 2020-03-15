@@ -1,9 +1,13 @@
+#include <Wire.h>
 #include "encoders.h"
 #include "lineSensors.h"
 #include "common_sys.h"
 #include "pid.h"
 #include "SimpleKalmanFilter.h"
 #include "kinematics.h"
+
+#include "imuSensor.h"
+#include "romiEKF.h"
 
 //~~~~~~~~~~~~~~~~~~TODO's~~~~~~~~~~~~~~~~~~~~~//
 // TODO: Improve Kinematics calculations -> for sharp angle turns the kinematics and look home is really off -> bad theta being calculated? 
@@ -49,7 +53,7 @@ int count = 0;
 //intialise the state
 // NB: -1, -2, -3, -4 are a debuging state So use that accordingly
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
-int state = 0;
+int state = 4;
 /*~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~*/
 bool isClose = false;
 bool shouldBeep = true;
@@ -60,7 +64,7 @@ float current_rotation = 0.0;
 LineSensor l_sensor(LINE_LEFT_PIN);
 LineSensor c_sensor(LINE_CENTRE_PIN);
 LineSensor r_sensor(LINE_RIGHT_PIN);
-
+Gyro imu;
 
 //Interrupt definition here
 double hz = 250.0;
@@ -79,6 +83,16 @@ volatile double confidence = -1.0;
 
 //Control loop timers
 Kinematics2D::Kinematics Romi(0.14, 0.035);
+
+//EKF test
+unsigned long ekf_timestamp;
+float int_x[] = {0.0, 0.0, 0.0};
+float int_p[] = {0.0001, 0.0001, 0.0001};
+RomiEKF::ekf romi_ekf(int_x, int_p);
+float forward_vel;
+float ang_vel;
+float imu_theta = 0.0;
+
 
 ISR( TIMER3_COMPA_vect ) {
 //  Do speed calcs and odom in here
@@ -113,6 +127,8 @@ void stateCleanup(void)
 {               
         l_power = 0.0;
         r_power =0.0;
+        forward_vel = 0.0;
+        ang_vel = 0.0;
         r_direction = FORWARD;
         l_direction = FORWARD;
         right_wheel.reset();
@@ -136,6 +152,8 @@ void setup() {
   heading.setMax(1.0);
   rth_heading.setMax(M_PI);
   rth_position.setMax(0.01);
+  
+  Wire.begin();
 
   pinMode(13, OUTPUT);
   Serial.begin( 9600 );
@@ -156,6 +174,8 @@ void setup() {
   l_sensor.calibrate();
   c_sensor.calibrate();
   r_sensor.calibrate();
+  imu.enable();
+  imu.calibrate();
   
   pinMode(6, OUTPUT);
   flash_leds(500);
@@ -195,6 +215,25 @@ unsigned long time_now = millis();
 unsigned long elapsed_time = time_now - last_timestamp;
 
 unsigned long beep_time = time_now - beep_timestamp;
+
+unsigned long ekf_time = time_now - ekf_timestamp;
+
+//Have the ekf run independently of the rest of the system
+
+  if(ekf_time >= 50)
+  {
+    ekf_timestamp = millis();
+    //make measurments
+    float zk[4];
+    zk[0] = Romi.getPose().x;
+    zk[1] = Romi.getPose().y;
+    zk[2] = Romi.getPose().theta;
+    imu_theta += ((float)imu.readCalibrated() * 8.75/1000)/180.0 * M_PI* 0.05;
+    zk[3] = imu_theta;//hard coding the time step here
+
+    float input[] = {forward_vel, ang_vel};
+    romi_ekf.ekfStep(zk, input, time_now);
+  }
   
 //switch case logic for romi -> each state should only adjust power and direction of motors for keeping traceability
 switch(state){
@@ -208,6 +247,7 @@ switch(state){
         float right_output, left_output;
         right_output = right_wheel.update(0.6*max_des_speed, right_wheel_est);
         left_output = left_wheel.update(0.6*max_des_speed, left_wheel_est);
+        Romi.WheelVelsToRobotVel(0.6*max_des_speed,0.6*max_des_speed, forward_vel, ang_vel);
 //        right_output = 0.7*max_des_speed;
 //        left_output = 0.7* max_des_speed;
         l_direction = FORWARD;
@@ -265,9 +305,7 @@ switch(state){
       float heading_output = 0.0;
       float right_output = 0.0;
       float left_output = 0.0;
-      float forward_vel = 0.0;
       float right_vel, left_vel;
-      float ang_vel = 0.0;
       last_timestamp = millis();    
       heading_output = heading.update(0.0, m);
       count++;
@@ -341,7 +379,7 @@ switch(state){
         analogWrite(6,0);
         digitalWrite(13, LOW);    
         stateCleanup();
-        state = 2;
+        state = 4;
         break;  
       } 
     }
@@ -358,7 +396,7 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
-        float ang_vel = (home_heading > 0)? 0.1*max_ang_vel : -0.1*max_ang_vel ;
+        ang_vel = (home_heading > 0)? 0.1*max_ang_vel : -0.1*max_ang_vel ;
         float head_tol = M_PI/180.0;
 //        if(isClose)
 //        {
@@ -434,10 +472,10 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
-        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 3.0)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 3.0)*max_ang_vel ;
+        ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 3.0)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 3.0)*max_ang_vel ;
 //        float head_tol = M_PI/90.0;
-//        float lin_vel = float_map(abs_distance, 0.0, distance_from_home, 0.5,1.0)*max_linear_vel;
-        float lin_vel = max_linear_vel;
+//        float forward_vel = float_map(abs_distance, 0.0, distance_from_home, 0.5,1.0)*max_linear_vel;
+        forward_vel = max_linear_vel;
         last_timestamp = millis();
 //        if( !isClose  && abs_distance < 0.2)
 //        {
@@ -451,7 +489,7 @@ switch(state){
         if(count%2==0)
         {
           float right_vel, left_vel;
-          Romi.robotVelToWheelVels(lin_vel, ang_vel, left_vel, right_vel);
+          Romi.robotVelToWheelVels(forward_vel, ang_vel, left_vel, right_vel);
           right_output = right_vel;
           left_output = left_vel;
           count = 0;
@@ -510,7 +548,13 @@ switch(state){
         Serial.print(",");
         Serial.print(Romi.getPose().y, 3);
         Serial.print(",");
-        Serial.println(Romi.getPose().theta,6);
+        Serial.print(Romi.getPose().theta,6);
+        Serial.print(",");
+        Serial.print(romi_ekf.getStateVar(0),3);
+        Serial.print(",");
+        Serial.print(romi_ekf.getStateVar(1), 3);
+        Serial.print(",");
+        Serial.println(romi_ekf.getStateVar(2),6);
         // Finished
     }
     break;

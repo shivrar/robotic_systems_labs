@@ -34,6 +34,7 @@ namespace Kinematics2D{
       void update(float, float, float);
       Pose2D getPose();
       void robotVelToWheelVels(float, float, float&, float&);
+      void WheelVelsToRobotVel(float, float, float&, float&);
       float getRobotLinearX();
       float getRobotAngZ();
             
@@ -99,6 +100,15 @@ namespace Kinematics2D{
 
     wheel_speed_L = (liner_x - (ang_z*wheel_separation_/2))/wheel_radius_ ;
     wheel_speed_R = (liner_x + (ang_z*wheel_separation_/2))/wheel_radius_ ;
+    
+  }
+
+    void Kinematics::WheelVelsToRobotVel(float wheel_left, float wheel_right, float& lin_vel, float& ang_vel)
+  {
+    /* Given the robot linear x velocity and agular yaw velocity derive how much the wheel velocites are*/
+
+    lin_vel = (wheel_left + wheel_right)*wheel_radius_/2.0;
+    ang_vel = (wheel_right - wheel_left)* wheel_radius_/wheel_separation_;
     
   }
 
