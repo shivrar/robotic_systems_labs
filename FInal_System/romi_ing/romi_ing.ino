@@ -14,7 +14,7 @@ int max_power = 35; // ~5.06
 int max_power_home = 60;
 int min_power = 20;
 float max_des_speed = 2.0*M_PI;
-static float max_ang_vel = 3.0*M_PI;
+static float max_ang_vel = 2.5*M_PI;
 static float max_linear_vel = 0.1;
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
@@ -31,7 +31,7 @@ PID right_wheel(1.0,  0.02, 0.0000);
 //PID heading(1.0,0.0,0.035);
 //PID heading(0.42, 0.005,0.00006);
 //PID heading(0.45, 0.001,0.004);
-PID heading(0.58, 0.01,0.0005);
+PID heading(0.54, 0.015,0.0006);
 PID rth_heading(1.0,0.0,0.0);
 PID rth_position(0.05, 0.0, 0.0);
 //PID rth_heading2(0.05,0.001,1.0);
@@ -200,7 +200,7 @@ unsigned long beep_time = time_now - beep_timestamp;
 switch(state){
   case 0:
   {
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 120)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
     {
       if(elapsed_time >= 50)
       {
@@ -358,7 +358,7 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
-        float ang_vel = (home_heading > 0)? 0.1*max_ang_vel : -0.1*max_ang_vel ;
+        float ang_vel = (home_heading > 0)? 0.2*max_ang_vel : -0.2*max_ang_vel ;
         float head_tol = M_PI/180.0;
 //        if(isClose)
 //        {
@@ -434,7 +434,7 @@ switch(state){
         float left_output = 0.0;
         float alpha = acos((-Romi.getPose().x*cos(Romi.getPose().theta) - Romi.getPose().y*sin(Romi.getPose().theta))/sqrt(square(Romi.getPose().x) + square(Romi.getPose().y)));
         float home_heading = (-Romi.getPose().y*cos(Romi.getPose().theta) + Romi.getPose().x*sin(Romi.getPose().theta)) > 0.0 ? alpha: -alpha;
-        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 3.0)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 3.0)*max_ang_vel ;
+        float ang_vel = (home_heading > 0)? float_map(abs(home_heading), 0.0, M_PI, 0.0, 2.0)*max_ang_vel : -float_map(abs(home_heading), 0.0, M_PI, 0.0, 2.0)*max_ang_vel ;
 //        float head_tol = M_PI/90.0;
 //        float lin_vel = float_map(abs_distance, 0.0, distance_from_home, 0.5,1.0)*max_linear_vel;
         float lin_vel = max_linear_vel;
