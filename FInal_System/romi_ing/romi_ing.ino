@@ -1,3 +1,7 @@
+#include <Pozyx.h>
+#include <Pozyx_definitions.h>
+#include <Wire.h>
+
 #include "encoders.h"
 #include "lineSensors.h"
 #include "common_sys.h"
@@ -5,6 +9,58 @@
 #include "SimpleKalmanFilter.h"
 #include "kinematics.h"
 
+
+//Quick and dirty ekf for pozyx implementation
+#define Nsta 1     // Two state values: x, y
+#define Mobs 2     // Four measruements: x_enc, y_enc, x_tag, y_tag
+
+#include <TinyEKF.h>
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+class Fuser : public TinyEKF {
+
+    public:
+
+        Fuser()
+        {            
+            // We approximate the process noise using a small constant
+            this->setQ(0, 0, .01);
+//            this->setQ(1, 1, .1);
+
+            // Same for measurement noise
+            this->setR(0, 0, .033);
+            this->setR(1, 1, .1);
+//            this->setR(2, 2, .1);
+//            this->setR(3, 3, .1);
+        }
+
+    protected:
+
+        void model(double fx[Nsta], double F[Nsta][Nsta], double hx[Mobs], double H[Mobs][Nsta])
+        {
+            // Process model is f(x) = x
+            fx[0] = this->x[0];
+//            fx[1] = this->x[1];
+
+            // So process model Jacobian is identity matrix
+            F[0][0] = 1;
+//            F[1][1] = 1;
+
+            hx[0] = this->x[0]; // X from previous state
+            hx[1] = this->x[0]; // X from previous state
+//            hx[2] = this->x[1]; // Y from previous state 
+//            hx[3] = this->x[1]; // Y from previous state
+
+            // Jacobian of measurement function
+            H[0][0] = 1;        // X
+            H[1][0] = 1 ;       // X
+//            H[2][1] = 1 ;       // Y
+//            H[3][1] = 1;        // Y
+        }
+};
+
+Fuser ekf_x, ekf_y;
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~TODO's~~~~~~~~~~~~~~~~~~~~~//
 // TODO: Improve Kinematics calculations -> for sharp angle turns the kinematics and look home is really off -> bad theta being calculated? 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~//
@@ -14,8 +70,9 @@ int max_power = 35; // ~5.06
 int max_power_home = 60;
 int min_power = 20;
 float max_des_speed = 2.0*M_PI;
-static float max_ang_vel = 2.5*M_PI;
-static float max_linear_vel = 0.1;
+static float max_ang_vel = M_PI/4.0;
+static float max_linear_vel = 0.08;
+uint8_t thresh = 100; 
 
 /*20= 2.02, 50 = 5.7, 63.75= 6.8, 100=11.0 , 152 = 17.2, 191.25 = 20.5, 235=24.96  ,255=26.84
 
@@ -44,6 +101,8 @@ volatile bool r_direction;
 unsigned long last_timestamp;
 unsigned long beep_timestamp;
 float distance_from_home = 0.0;
+
+unsigned long pozyx_timestamp;
 
 int count = 0;
 //intialise the state
@@ -78,7 +137,7 @@ SimpleKalmanFilter right_filter(0.3,0.1,0.01);
 volatile double confidence = -1.0;
 
 //Control loop timers
-Kinematics2D::Kinematics Romi(0.14, 0.035);
+Kinematics2D::Kinematics Romi(0.14, 0.035, 1.76, 2.3, M_PI/2.0);
 
 ISR( TIMER3_COMPA_vect ) {
 //  Do speed calcs and odom in here
@@ -97,7 +156,7 @@ ISR( TIMER3_COMPA_vect ) {
   prev_theta_e0 = theta_e0;
   prev_theta_e1 = theta_e1;
   if(state == 0 || state ==1){
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < thresh)
     {
       confidence -= 0.004;
     }
@@ -136,9 +195,28 @@ void setup() {
   heading.setMax(1.0);
   rth_heading.setMax(M_PI);
   rth_position.setMax(0.01);
+  //Pozyx stuff here
+  
+    if(Pozyx.begin() == POZYX_FAILURE){
+    Serial.println(F("ERROR: Unable to connect to POZYX shield"));
+    Serial.println(F("Reset required"));
+    delay(100);
+//    abort();
+  }
+
+  if(!remote){
+    remote_id = NULL;
+  }
+
+  // clear all previous devices in the device list
+  Pozyx.clearDevices(remote_id);
+  // sets the anchor manually
+  setAnchorsManual();
+  // sets the positioning algorithm
+  Pozyx.setPositionAlgorithm(algorithm, dimension, remote_id);
 
   pinMode(13, OUTPUT);
-  Serial.begin( 9600 );
+  Serial.begin( 115200 );
   pinMode(17, INPUT);
   int buttonState = 0;         // variable for reading the pushbutton status
 
@@ -195,19 +273,56 @@ unsigned long time_now = millis();
 unsigned long elapsed_time = time_now - last_timestamp;
 
 unsigned long beep_time = time_now - beep_timestamp;
+
+unsigned long pozyx_time = time_now - pozyx_timestamp;
+
+//Before we do anything with states lets update the ekf with readings
+if(pozyx_time >= 50){
+  pozyx_time = millis();
+  coordinates_t pos_pozyx;
+  int status;
+  status = Pozyx.doPositioning(&pos_pozyx, dimension, height, algorithm);
+
+  if (status == POZYX_SUCCESS){
+    // prints out the result
+//    printCoordinates(pos_pozyx);
+    double zx[2], zy[2];
+    zx[0] = Romi.getPose().x;
+    zx[1] = pos_pozyx.x/1000.0f;
+    zy[0] = Romi.getPose().y;
+    zy[1] = pos_pozyx.y/1000.0f;
+
+    ekf_x.step(zx);
+    ekf_y.step(zy);
+
+  }
+
+  Serial.print(ekf_x.getX(0), 6);
+  Serial.print(",");
+  Serial.print(ekf_y.getX(0), 6);
+  Serial.print(",");
+  Serial.print(Romi.getPose().x,6);
+  Serial.print(",");
+  Serial.print(Romi.getPose().y,6);
+  Serial.print(",");
+  Serial.print(pos_pozyx.x/1000.0f,6);
+  Serial.print(",");
+  Serial.println(pos_pozyx.y/1000.0f,6);
+  
+}
   
 //switch case logic for romi -> each state should only adjust power and direction of motors for keeping traceability
 switch(state){
   case 0:
   {
-    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < 100)
+    if((l_sensor.readCalibrated()+ c_sensor.readCalibrated() + r_sensor.readCalibrated())/3 < thresh)
     {
       if(elapsed_time >= 50)
       {
         last_timestamp = millis();
         float right_output, left_output;
-        right_output = right_wheel.update(0.6*max_des_speed, right_wheel_est);
-        left_output = left_wheel.update(0.6*max_des_speed, left_wheel_est);
+        right_output = right_wheel.update(0.3*max_des_speed, right_wheel_est);
+        left_output = left_wheel.update(0.3*max_des_speed, left_wheel_est);
 //        right_output = 0.7*max_des_speed;
 //        left_output = 0.7* max_des_speed;
         l_direction = FORWARD;
@@ -341,7 +456,7 @@ switch(state){
         analogWrite(6,0);
         digitalWrite(13, LOW);    
         stateCleanup();
-        state = 2;
+        state = 4;
         break;  
       } 
     }
@@ -506,11 +621,11 @@ switch(state){
     {
         l_power = 0.0;
         r_power = 0.0;
-        Serial.print(Romi.getPose().x,3);
-        Serial.print(",");
-        Serial.print(Romi.getPose().y, 3);
-        Serial.print(",");
-        Serial.println(Romi.getPose().theta,6);
+//        Serial.print(ekf_x.getX(0), 3);
+//        Serial.print(",");
+//        Serial.print(ekf_y.getX(0), 3);
+//        Serial.print(",");
+//        Serial.println(Romi.getPose().theta,6);
         // Finished
     }
     break;

@@ -30,7 +30,7 @@ namespace Kinematics2D{
   {
     public:
       
-      Kinematics(float, float);
+      Kinematics(float, float, float, float, float);
       void update(float, float, float);
       Pose2D getPose();
       void robotVelToWheelVels(float, float, float&, float&);
@@ -50,9 +50,12 @@ namespace Kinematics2D{
   
   
   // Required constructor.  Initialise variables.
-  Kinematics::Kinematics(float wheel_separation, float wheel_radius)
+  Kinematics::Kinematics(float wheel_separation, float wheel_radius, float initial_x  = 0.0, float initial_y = 0.0, float initial_theta = 0.0)
   :wheel_separation_(wheel_separation),  wheel_radius_(wheel_radius)
   {
+    pose_encoder_.x = initial_x;
+    pose_encoder_.y = initial_y;
+    pose_encoder_.theta = initial_theta;
     last_update_time_ = 0.0;
     linear_x_ = 0.0;
     ang_z_ = 0.0;
